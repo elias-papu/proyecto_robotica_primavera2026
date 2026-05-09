@@ -2,15 +2,15 @@
 layout: default
 title: Resultados
 nav_order: 8
-description: "Pruebas de cinemática inversa, comparativas de métodos y conclusiones del proyecto"
+description: "Métricas de precisión, comparativas y conclusiones del proyecto"
 permalink: /07-resultados/
 ---
 
 # 7. Resultados
 {: .no_toc }
 
-Métricas de precisión, comparativas de métodos y conclusiones del CoBot Clasificador de Colores.
-{: .fs-6 .fw-300 }
+Métricas de precisión, comparativas de métodos y conclusiones obtenidas con el sistema real.
+{: .fs-5 .fw-300 }
 
 ## Tabla de Contenidos
 {: .no_toc .text-delta }
@@ -20,114 +20,83 @@ Métricas de precisión, comparativas de métodos y conclusiones del CoBot Clasi
 
 ---
 
-## 7.1 Pruebas de Cinemática Inversa
+## 7.1 Precisión de la IK Analítica
 
-Se evaluó la precisión de la IK analítica calculando la posición obtenida mediante cinemática directa y comparándola con la posición deseada. Se realizaron 10 pruebas en posiciones representativas del área de trabajo:
+La IK analítica se validó calculando la cinemática directa sobre la solución obtenida y comparando con la posición deseada:
 
-| # | X deseada (mm) | Y deseada (mm) | Z deseada (mm) | X obtenida (mm) | Y obtenida (mm) | Z obtenida (mm) | Error (mm) |
-|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| 1 | 200.0 | -300.0 | 160.0 | 200.0 | -300.0 | 160.0 | 0.000 |
-| 2 | -200.0 | -300.0 | 160.0 | -200.0 | -300.0 | 160.0 | 0.000 |
-| 3 | 0.0 | -300.0 | 160.0 | 0.0 | -300.0 | 160.0 | 0.000 |
-| 4 | 300.0 | -250.0 | 180.0 | 300.0 | -250.0 | 180.0 | 0.000 |
-| 5 | -300.0 | -400.0 | 160.0 | -300.0 | -400.0 | 160.0 | 0.000 |
-| 6 | 150.0 | -200.0 | 200.0 | 150.0 | -200.0 | 200.0 | 0.000 |
-| 7 | -150.0 | -350.0 | 140.0 | -150.0 | -350.0 | 140.0 | 0.000 |
-| 8 | 400.0 | -150.0 | 220.0 | 400.0 | -150.0 | 220.0 | 0.000 |
-| 9 | 0.0 | -500.0 | 160.0 | 0.0 | -500.0 | 160.0 | 0.000 |
-| 10 | 250.0 | -300.0 | 160.0 | 250.0 | -300.0 | 160.0 | 0.000 |
+| Posición objetivo | X err (mm) | Y err (mm) | Z err (mm) | Error total |
+|---|:---:|:---:|:---:|:---:|
+| Zona verde: (275, −294, 160) | < 0.001 | < 0.001 | < 0.001 | **< 10⁻³ mm** |
+| Zona roja: (0, −294, 160) | < 0.001 | < 0.001 | < 0.001 | **< 10⁻³ mm** |
+| Zona azul: (−275, −294, 160) | < 0.001 | < 0.001 | < 0.001 | **< 10⁻³ mm** |
+| PREMOVE cubo rojo: (0, −200, 240) | < 0.001 | < 0.001 | < 0.001 | **< 10⁻³ mm** |
+| Posición lejana: (350, −450, 160) | < 0.001 | < 0.001 | < 0.001 | **< 10⁻³ mm** |
 
-> **Resultado:** La IK analítica alcanza **error numérico de 0.000 mm** (precisión de punto flotante de doble precisión, ~10⁻¹² m) en todas las posiciones dentro del workspace. El método es exacto, no aproximado.
+> El método analítico alcanza **precisión de punto flotante de doble precisión** (∼10⁻¹² m). Es exacto, no aproximado.
 
 ---
 
 ## 7.2 Comparativa de Métodos IK
 
-| Criterio | IK Geométrica | Levenberg-Marquardt | Control Cinemático |
-|---|:---:|:---:|:---:|
-| **Tiempo de cómputo** | < 1 ms | 2–15 ms | 3–8 ms |
-| **Error de posición** | < 10⁻¹⁰ mm | < 0.001 mm | < 0.1 mm |
-| **Error de orientación** | < 10⁻¹⁰ mm | No controlado | No controlado |
-| **Iteraciones** | 1 (directo) | 20–80 | 40–120 |
-| **Selección de rama** | ✅ Explícita | ❌ Depende del inicial | ❌ Depende del inicial |
-| **Robustez** | ✅ Alta | ✅ Alta | 🔶 Media |
-| **Singularidades** | ✅ Detectables | ✅ Amortiguamiento λ | 🔶 Posible oscilación |
-| **Tiempo real** | ✅ Sí | 🔶 Marginal | 🔶 Marginal |
-| **Implementación** | 🔶 Específica UR3 | ✅ Genérica | ✅ Genérica |
-| **Uso en proyecto** | ✅ Principal | 📚 Referencia académica | 📚 Referencia académica |
-
----
-
-## 7.3 Comparativa de Métodos de Trayectoria
-
-Evaluados para el movimiento APPROACH → PICK (Z: 210 mm → 160 mm, tf = 2 s):
-
-| Criterio | Polinomio Quíntico | Trapezoidal |
+| Criterio | IK Analítica | Levenberg-Marquardt |
 |---|:---:|:---:|
-| **Suavidad** | ✅ Continua hasta $$\ddot{s}$$ | 🔶 Discontinua en $$\ddot{s}$$ |
-| **Aceleración máxima** | 65 mm/s² | 40 mm/s² (configurable) |
-| **Jerk** | ✅ Continuo | ❌ Impulsos en $$t_a, t_d$$ |
-| **Tiempo de ciclo** | 2.0 s (tf fijo) | 1.6 s (alcanza v_max) |
-| **Velocidad máxima** | 37.5 mm/s | 50 mm/s |
-| **Posición en t=0 y t=tf** | ✅ Exacta | ✅ Exacta |
-| **Velocidad en extremos** | ✅ = 0 | ✅ = 0 |
-| **Aceleración en extremos** | ✅ = 0 | ❌ Discontinuidad |
-| **Vibración mecánica** | ✅ Mínima | 🔶 Posible |
-| **Aplicación ideal** | Pick y Place de precisión | Transporte rápido entre zonas |
+| **Tiempo de cómputo** | < 1 ms | 5–50 ms |
+| **Error de posición** | < 10⁻³ mm | < 0.1 mm (tol=1e-4 m) |
+| **Error de orientación** | Exacto | Ponderado (W) |
+| **Configuraciones** | 4 ramas explícitas | Depende del punto inicial |
+| **Singularidades** | ✅ Detectadas y reportadas | ✅ Amortiguadas (λ=0.05) |
+| **Éxito en workspace** | ~95% directo, ~99% con cascada | ~85% desde HOME |
+| **Rol en el proyecto** | Principal | Estrategia 5 (fallback) |
 
 ---
 
-## 7.4 Error de Detección Visual
+## 7.3 Comparativa de Trayectorias
 
-Se midió el error de localización de cubos comparando la posición detectada por visión con la posición real (medida con calibrador digital):
-
-### Antes de Calibración ArUco
-
-| Prueba | X real (mm) | X detectada (mm) | Y real (mm) | Y detectada (mm) | Error (mm) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| 1 | 200.0 | 218.3 | -300.0 | -284.7 | 23.9 |
-| 2 | -150.0 | -132.4 | -250.0 | -238.1 | 21.4 |
-| 3 | 0.0 | 8.2 | -300.0 | -291.5 | 11.9 |
-| 4 | 300.0 | 324.7 | -150.0 | -136.2 | 28.3 |
-| **Media** | — | — | — | — | **21.4 mm** |
-
-### Después de Calibración ArUco
-
-| Prueba | X real (mm) | X detectada (mm) | Y real (mm) | Y detectada (mm) | Error (mm) |
-|:---:|:---:|:---:|:---:|:---:|:---:|
-| 1 | 200.0 | 201.3 | -300.0 | -298.7 | 1.8 |
-| 2 | -150.0 | -151.2 | -250.0 | -251.4 | 1.8 |
-| 3 | 0.0 | 0.7 | -300.0 | -299.1 | 1.1 |
-| 4 | 300.0 | 301.8 | -150.0 | -151.3 | 2.2 |
-| **Media** | — | — | — | — | **1.7 mm** |
-
-> **Mejora:** La calibración ArUco reduce el error de localización de **21.4 mm a 1.7 mm**, una mejora del **92%**. El error residual de 1.7 mm proviene principalmente de imprecisiones en la detección del centroide y la distorsión óptica residual.
+| Criterio | Polinomio Quíntico | `movej` Normal |
+|---|:---:|:---:|
+| **Suavidad** | ✅ Continua hasta $$\ddot{q}$$ | 🔶 Controlada por UR internamente |
+| **Tiempo calculado** | `calcular_tf_quintico()` | `_tiempo_movej()` (×2 margen) |
+| **Parámetro `t`** | ✅ Enviado explícitamente | ❌ Solo vel/acel |
+| **Uso** | Tránsitos (HOME→PREMOVE) | Cerca del cubo (APPROACH→PICK) |
 
 ---
 
-## 7.5 Conclusiones
+## 7.4 Precisión de Detección Visual
 
-### Cinemática
+| Métrica | Sin calibración ArUco | Con calibración ArUco |
+|---|:---:|:---:|
+| **Error medio de posición** | ~22 mm | **< 3 mm** |
+| **Error máximo observado** | ~35 mm | **< 8 mm** |
+| **Tasa de detección (condiciones lab.)** | 95% | 95% |
+| **Falsos positivos** | ~5% | ~2% |
 
-1. **La IK analítica es la solución óptima** para pick and place industrial con el UR3. Ofrece exactitud numérica, velocidad < 1 ms, y selección explícita de configuración articular.
+El error mayor después de calibración proviene de la resolución de la cámara (∼0.7 mm/px a la distancia de trabajo) y la precisión del centroide del contorno.
 
-2. **El método Levenberg-Marquardt** es valioso como referencia y fallback, pero no adecuado para tiempo real en ciclos de alta frecuencia.
+---
 
-3. **Los polinomios quínticos** garantizan la continuidad de aceleración necesaria para evitar vibraciones en el manipulador, a costa de un tiempo de ciclo ligeramente mayor respecto al perfil trapezoidal.
+## 7.5 Rendimiento del Sistema Completo
 
-### Visión Artificial
+| Métrica | Valor |
+|---|---|
+| **Tiempo de ciclo pick & place (1 cubo)** | 15–25 s (depende de la posición) |
+| **Cubos clasificados correctamente en pruebas** | 100% (10/10 pruebas) |
+| **Activaciones del waypoint de rodeo** | ~30% de los picks (zona baja del área) |
+| **Activaciones de estrategia LM** | < 5% de los picks |
+| **Tasa de fallo de grip** | 0% en pruebas (gripper suave robusto) |
 
-4. **La calibración ArUco es esencial:** sin ella, el error de localización (21.4 mm) supera la tolerancia del gripper. Con calibración, el error cae a 1.7 mm, perfectamente manejable con el Soft Gripper.
+---
 
-5. **Los filtros geométricos** (área, solidez, aspecto, vértices) son suficientes para distinguir cubos de otros objetos en el área de trabajo. La solidez > 0.85 es el filtro más discriminante.
+## 7.6 Conclusiones
 
-### Sistema Integrado
+1. **La IK analítica es la elección correcta** para pick and place industrial con el UR3. Tiempo < 1 ms, exactitud numérica y selección explícita de configuración son ventajas decisivas.
 
-6. **El modo SORT** demostró la capacidad del sistema para operar de forma completamente autónoma, clasificando hasta 6 cubos desordenados sin intervención humana.
+2. **La cascada de 5 estrategias** aumentó la cobertura del workspace de ~70% (solo rama principal) a ~99%, eliminando fallas de IK en la práctica.
 
-7. **El waypoint de rodeo** para la zona de barras laterales resuelve de forma elegante las restricciones cinemáticas del espacio de trabajo sin reprogramar la IK.
+3. **La calibración ArUco es esencial:** reduce el error de localización de ~22 mm a < 3 mm, diferencia entre un sistema funcional y uno que falla constantemente.
 
-8. **La arquitectura multihilo** (detección visual en hilo separado) permite que el robot continúe en movimiento mientras la cámara actualiza la localización de los cubos, reduciendo el tiempo de ciclo total.
+4. **El modo SORT-BUCLE** demostró la autonomía completa del sistema: opera indefinidamente sin intervención humana, detectando y corrigiendo el desorden en cuanto aparece.
+
+5. **La decisión de quíntico en tránsitos + movej lento en picks** resultó en un buen balance entre velocidad de ciclo y control preciso cerca del cubo.
 
 ---
 

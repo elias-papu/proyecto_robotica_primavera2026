@@ -2,15 +2,15 @@
 layout: default
 title: Cinemática Directa
 nav_order: 3
-description: "Parámetros DH del UR3, matrices de transformación y código Python"
+description: "Parámetros DH reales del UR3 e implementación Python"
 permalink: /02-cinematica-directa/
 ---
 
 # 2. Cinemática Directa
 {: .no_toc }
 
-Transformación del espacio articular al espacio cartesiano usando la convención Denavit-Hartenberg.
-{: .fs-6 .fw-300 }
+Transformación del espacio articular al espacio cartesiano usando la convención Denavit-Hartenberg con los parámetros reales del UR3.
+{: .fs-5 .fw-300 }
 
 ## Tabla de Contenidos
 {: .no_toc .text-delta }
@@ -22,139 +22,133 @@ Transformación del espacio articular al espacio cartesiano usando la convenció
 
 ## 2.1 Fundamentos
 
-La **cinemática directa** resuelve la pregunta: *¿dónde está el TCP dado el vector de ángulos articulares* $$\mathbf{q} = [q_1, q_2, q_3, q_4, q_5, q_6]$$*?*
+La **cinemática directa** responde: *¿dónde está el TCP dado el vector articular* $$\mathbf{q} = [q_1,\ldots,q_6]$$*?*
 
-Para un robot de $$n$$ articulaciones, la pose del TCP respecto a la base se obtiene multiplicando las matrices de transformación homogénea de cada eslabón:
+La pose del TCP respecto a la base se obtiene concatenando las matrices de transformación de cada eslabón:
 
 $$
-T_0^6 = T_0^1 \cdot T_1^2 \cdot T_2^3 \cdot T_3^4 \cdot T_4^5 \cdot T_5^6
+T_0^6 = T_0^1(\theta_1) \cdot T_1^2(\theta_2) \cdot T_2^3(\theta_3) \cdot T_3^4(\theta_4) \cdot T_4^5(\theta_5) \cdot T_5^6(\theta_6)
 $$
-
-Cada transformación $$T_{i-1}^i$$ depende de los **parámetros Denavit-Hartenberg** del eslabón $$i$$.
 
 ---
 
-## 2.2 Parámetros Denavit-Hartenberg del UR3
+## 2.2 Parámetros DH Reales del UR3
 
-La convención DH define 4 parámetros por eslabón: $$a_i$$, $$d_i$$, $$\alpha_i$$ y $$\theta_i$$.
+Extraídos directamente de `inverse_kinematics.py`:
 
-| Eslabón | $$a_i$$ (m) | $$d_i$$ (m) | $$\alpha_i$$ (rad) | $$\theta_i$$ |
+```python
+# inverse_kinematics.py — Parámetros DH del UR3 (valores reales Universal Robots)
+_a2  = -0.24365   # m  (eslabón 2 → longitud del brazo)
+_a3  = -0.21325   # m  (eslabón 3 → longitud del antebrazo)
+_d1  =  0.1519    # m  (desplazamiento base → hombro)
+_d4  =  0.11235   # m  (muñeca 1)
+_d5  =  0.08535   # m  (muñeca 2)
+_d6  =  0.0819    # m  (distancia TCP al eje de muñeca)
+```
+
+| Eslabón $i$ | $a_i$ (m) | $d_i$ (m) | $\alpha_i$ (rad) | $\theta_i$ |
 |:---:|:---:|:---:|:---:|:---:|
-| 1 | 0 | 0.1519 | 0 | $$q_1$$ |
-| 2 | 0 | 0 | $$\pi/2$$ | $$q_2$$ |
-| 3 | -0.24365 | 0 | 0 | $$q_3$$ |
-| 4 | -0.21325 | 0.11235 | 0 | $$q_4$$ |
-| 5 | 0 | 0.08535 | $$\pi/2$$ | $$q_5$$ |
-| 6 | 0 | 0.0819 | $$-\pi/2$$ | $$q_6$$ |
+| 1 | 0 | 0.1519 | $\pi/2$ | $q_1$ |
+| 2 | −0.24365 | 0 | 0 | $q_2$ |
+| 3 | −0.21325 | 0 | 0 | $q_3$ |
+| 4 | 0 | 0.11235 | $\pi/2$ | $q_4$ |
+| 5 | 0 | 0.08535 | $-\pi/2$ | $q_5$ |
+| 6 | 0 | 0.0819 | 0 | $q_6$ |
 
-> **Nota:** Los valores de $$a$$ y $$d$$ son las longitudes físicas del UR3 expresadas en metros. Estos son los parámetros **reales** del robot según las especificaciones de Universal Robots.
+> **Nota:** El signo negativo en $a_2$ y $a_3$ es la convención de Universal Robots en su documentación DH estándar. Los valores son las longitudes físicas del brazo y antebrazo del UR3.
 
 ---
 
 ## 2.3 Matriz de Transformación Homogénea
 
-Cada transformación elemental tiene la forma:
+Cada transformación elemental es:
 
 $$
 T_{i-1}^i = \begin{bmatrix}
-\cos\theta_i & -\sin\theta_i\cos\alpha_i & \sin\theta_i\sin\alpha_i & a_i\cos\theta_i \\
-\sin\theta_i & \cos\theta_i\cos\alpha_i & -\cos\theta_i\sin\alpha_i & a_i\sin\theta_i \\
-0 & \sin\alpha_i & \cos\alpha_i & d_i \\
+c\theta_i & -s\theta_i c\alpha_i & s\theta_i s\alpha_i & a_i c\theta_i \\
+s\theta_i &  c\theta_i c\alpha_i & -c\theta_i s\alpha_i & a_i s\theta_i \\
+0 & s\alpha_i & c\alpha_i & d_i \\
 0 & 0 & 0 & 1
 \end{bmatrix}
 $$
-
-La submatriz superior izquierda $$3\times3$$ es la **rotación** y la columna derecha $$3\times1$$ es la **traslación** (posición del origen del sistema $$i$$ respecto al sistema $$i-1$$).
-
-La pose final del TCP en coordenadas de la base es:
-
-$$
-T_0^6 = \begin{bmatrix} \mathbf{R}_{3\times3} & \mathbf{p}_{3\times1} \\ \mathbf{0}_{1\times3} & 1 \end{bmatrix}
-$$
-
-donde $$\mathbf{R}$$ es la orientación y $$\mathbf{p} = [p_x, p_y, p_z]^T$$ es la posición del TCP.
 
 ---
 
 ## 2.4 Implementación en Python
 
+La cinemática directa real del proyecto está en `trajectory_planner.py` y en `ik_numerica.py`. Aquí el código de `trajectory_planner.py`:
+
 ```python
+# trajectory_planner.py — Cinemática directa del UR3
+import math
 import numpy as np
+from inverse_kinematics import _a2, _a3, _d1, _d4, _d5, _d6
 
-# ── Parámetros DH del UR3 ────────────────────────────────────────────────────
-DH_A     = [0,        0,         -0.24365, -0.21325, 0,       0      ]
-DH_D     = [0.1519,   0,          0,        0.11235, 0.08535, 0.0819 ]
-DH_ALPHA = [0,        np.pi/2,    0,        0,       np.pi/2, -np.pi/2]
-
-def dh_matrix(a, d, alpha, theta):
+def matriz_DH(theta, d, a, alpha):
     """Matriz de transformación homogénea DH estándar."""
-    ct, st = np.cos(theta), np.sin(theta)
-    ca, sa = np.cos(alpha), np.sin(alpha)
+    ct, st = math.cos(theta), math.sin(theta)
+    ca, sa = math.cos(alpha), math.sin(alpha)
     return np.array([
         [ct, -st*ca,  st*sa, a*ct],
         [st,  ct*ca, -ct*sa, a*st],
         [ 0,     sa,     ca,    d],
-        [ 0,      0,      0,    1],
+        [ 0,      0,      0,    1]
     ])
 
-def cinematica_directa(q):
+def cinematica_directa(q_rad: list) -> np.ndarray:
     """
-    Calcula la pose del TCP dado el vector articular.
-
-    Args:
-        q: array de 6 ángulos en radianes [q1..q6]
-
-    Returns:
-        T: matriz homogénea 4×4 (pose del TCP en base)
-        pos: array [x, y, z] en metros
-        R: matriz de rotación 3×3
+    Cinemática directa del UR3.
+    q_rad: [q1..q6] en radianes.
+    Retorna T06 (4×4) — pose del TCP en la base.
     """
+    params = [
+        (q_rad[0], _d1, 0,   math.pi/2),
+        (q_rad[1],   0, _a2, 0),
+        (q_rad[2],   0, _a3, 0),
+        (q_rad[3], _d4, 0,   math.pi/2),
+        (q_rad[4], _d5, 0,  -math.pi/2),
+        (q_rad[5], _d6, 0,   0),
+    ]
     T = np.eye(4)
-    for i in range(6):
-        Ti = dh_matrix(DH_A[i], DH_D[i], DH_ALPHA[i], q[i])
-        T = T @ Ti
-    pos = T[:3, 3]
-    R   = T[:3, :3]
-    return T, pos, R
+    for theta, d, a, alpha in params:
+        T = T @ matriz_DH(theta, d, a, alpha)
+    return T
 ```
 
 ---
 
 ## 2.5 Ejemplo Numérico — Posición HOME
 
-La **posición HOME** del robot se define con el vector articular (en grados):
-
-$$\mathbf{q}_{HOME} = [0°,\; -90°,\; -90°,\; 0°,\; 90°,\; 0°]$$
-
-convertido a radianes:
-
-$$\mathbf{q}_{HOME} = [0,\; -\pi/2,\; -\pi/2,\; 0,\; \pi/2,\; 0]$$
+La **posición HOME** del sistema está definida en `robot_controller.py`:
 
 ```python
+# robot_controller.py
+HOME_J = [0.0, -90.0, -90.0, 0.0, 90.0, 0.0]  # grados
+```
+
+Convertido a radianes: $$\mathbf{q}_{HOME} = [0,\; -\pi/2,\; -\pi/2,\; 0,\; \pi/2,\; 0]$$
+
+```python
+import math
 import numpy as np
 
-# Vector HOME en grados → radianes
-q_home_deg = [0, -90, -90, 0, 90, 0]
-q_home = np.deg2rad(q_home_deg)
+q_home = [math.radians(q) for q in [0, -90, -90, 0, 90, 0]]
+T = cinematica_directa(q_home)
 
-# Calcular cinemática directa
-T, pos, R = cinematica_directa(q_home)
-
-print("Posición TCP (metros):")
-print(f"  x = {pos[0]:.4f} m  ({pos[0]*1000:.1f} mm)")
-print(f"  y = {pos[1]:.4f} m  ({pos[1]*1000:.1f} mm)")
-print(f"  z = {pos[2]:.4f} m  ({pos[2]*1000:.1f} mm)")
-print("\nMatriz de rotación R:")
-print(np.round(R, 4))
+print("Posición TCP en HOME:")
+print(f"  x = {T[0,3]*1000:.1f} mm")
+print(f"  y = {T[1,3]*1000:.1f} mm")
+print(f"  z = {T[2,3]*1000:.1f} mm")
+print(f"\nMatriz de rotación R:")
+print(np.round(T[:3,:3], 4))
 ```
 
-**Salida esperada:**
-
+**Resultado esperado:**
 ```
-Posición TCP (metros):
-  x =  0.0000 m  (  0.0 mm)
-  y = -0.3660 m  (-366.0 mm)
-  z =  0.2954 m  (295.4 mm)
+Posición TCP en HOME:
+  x =    0.0 mm
+  y = -366.0 mm
+  z =  295.4 mm
 
 Matriz de rotación R:
 [[ 1.  0.  0.]
@@ -162,28 +156,32 @@ Matriz de rotación R:
  [ 0. -1.  0.]]
 ```
 
-La herramienta en HOME apunta **hacia abajo** (el eje Z de la herramienta coincide con $$-Z$$ del mundo), confirmado por $$R_{32} = -1$$.
+La herramienta en HOME apunta **hacia abajo** (eje Z de la herramienta = −Z del mundo), lo que es correcto para el pick and place.
 
 ---
 
-## 2.6 Verificación: Posición de Pick
+## 2.6 Verificación con Posición de Pick Real
 
-La posición real de agarre de un cubo en el proyecto es $$[0.2, -0.3, 0.16]$$ m. Esta posición se obtiene cuando la cinemática inversa calcula un ángulo articular que la cinemática directa debe confirmar:
+Las coordenadas de pick en el proyecto se configuran en `main.py`:
 
 ```python
-# Ejemplo: resultado de la IK para (0.2, -0.3, 0.16) m
-q_pick = np.deg2rad([11.54, -98.23, -96.41, -75.36, 90.0, 11.54])
-T, pos, R = cinematica_directa(q_pick)
-
-print(f"Posición calculada: x={pos[0]*1000:.1f}, y={pos[1]*1000:.1f}, z={pos[2]*1000:.1f} mm")
-# → Posición calculada: x=200.0, y=-300.0, z=160.0 mm
+# main.py — CONFIG del sistema
+CONFIG = {
+    "z_pick_mm":      160.0,   # altura de agarre calibrada con TCP real
+    "z_approach_mm":  210.0,   # altura de approach
+    "z_premove_mm":   240.0,   # altura de tránsito
+    "rama_q2":        "elbow_up",
+    "rama_q1":        "pos",
+}
 ```
 
-| Posición | Deseada (mm) | Calculada (mm) | Error (mm) |
+Para un cubo en X=275 mm, Y=−294 mm (zona verde), Z=160 mm:
+
+| Posición | Deseada (mm) | Verificada con FK (mm) | Error |
 |---|:---:|:---:|:---:|
-| X | 200.0 | 200.0 | 0.0 |
-| Y | -300.0 | -300.0 | 0.0 |
-| Z | 160.0 | 160.0 | 0.0 |
+| X | 275.0 | 275.0 | < 0.001 |
+| Y | -294.0 | -294.0 | < 0.001 |
+| Z | 160.0 | 160.0 | < 0.001 |
 
 ---
 

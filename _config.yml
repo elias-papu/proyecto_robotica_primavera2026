@@ -1,14 +1,16 @@
 title: CoBot Clasificador de Colores
-description: UR3 · Visión Artificial · Cinemática Inversa
+description: "UR3 · Visión Artificial · Cinemática Inversa · IBERO 2025"
 theme: just-the-docs
 
-color_scheme: dark
+# Color scheme — usamos el default (claro) + override en custom CSS
+color_scheme: light
 
 url: ""
 baseurl: "/proyecto_robotica_primavera2026"
 
 # Navegación
 nav_sort: order
+nav_fold: false
 
 # Búsqueda
 search_enabled: true
@@ -17,30 +19,26 @@ search:
   previews: 3
   preview_words_before: 5
   preview_words_after: 10
-  tokenizer_separator: /[\s/]+/
-  rel_url: true
-  button: false
 
 # Footer
-footer_content: "Elias Santiago Jiménez Hernández &mdash; Control Avanzado de Robots 2025 &mdash; IBERO"
-
-# Plugins
-plugins:
-  - jekyll-seo-tag
+footer_content: >
+  <strong>Elias Santiago Jiménez Hernández</strong> &mdash;
+  Ingeniería Mecatrónica, 8° semestre &mdash;
+  <em>Control Avanzado</em> &mdash; IBERO Ciudad de México · 2025
 
 # Aux links
 aux_links:
-  "Repositorio GitHub":
-    - "https://github.com/elias-sjh/cobot-clasificador"
+  "🏆 3er Lugar · Día de las Ingenierías 2026":
+    - "reconocimiento"
 
-aux_links_new_tab: true
+aux_links_new_tab: false
 
 # Back to top
 back_to_top: true
-back_to_top_text: "Subir"
+back_to_top_text: "↑ Subir"
 
-# Last edited
-last_edit_time_stamp: "%d %b %Y, %H:%M"
+# MathJax para ecuaciones
+math: mathjax
 
 # Callouts
 callouts_level: quiet
@@ -50,9 +48,6 @@ callouts:
   important:
     title: Importante
     color: blue
-  new:
-    title: Nuevo
-    color: green
   note:
     title: Nota
     color: purple
@@ -60,12 +55,12 @@ callouts:
     title: Advertencia
     color: red
 
-# MathJax
-math: mathjax
-
 kramdown:
   math_engine: mathjax
   syntax_highlighter: rouge
   syntax_highlighter_opts:
     block:
       line_numbers: true
+
+plugins:
+  - jekyll-seo-tag

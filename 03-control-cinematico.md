@@ -2,15 +2,15 @@
 layout: default
 title: Control Cinemático
 nav_order: 4
-description: "Jacobiano del UR3, control de velocidad proporcional y ejemplo práctico"
+description: "Jacobiano numérico, control proporcional y planificación quíntica real"
 permalink: /03-control-cinematico/
 ---
 
 # 3. Control Cinemático
 {: .no_toc }
 
-Uso del Jacobiano para control de velocidad cartesiana y convergencia hacia una posición deseada.
-{: .fs-6 .fw-300 }
+Jacobiano numérico del UR3, control proporcional de velocidad y planificación de trayectorias con polinomio quíntico.
+{: .fs-5 .fw-300 }
 
 ## Tabla de Contenidos
 {: .no_toc .text-delta }
@@ -20,229 +20,210 @@ Uso del Jacobiano para control de velocidad cartesiana y convergencia hacia una 
 
 ---
 
-## 3.1 Motivación
+## 3.1 El Jacobiano en el Proyecto
 
-En muchas aplicaciones de robótica es necesario especificar **posiciones cartesianas** (coordenadas $$x, y, z$$) en lugar de ángulos articulares. El **control cinemático** permite mover el TCP a una posición cartesiana deseada usando una ley de control iterativa basada en el **Jacobiano**, sin necesidad de resolver la cinemática inversa analítica de forma explícita.
+El sistema usa el **Jacobiano numérico** en dos lugares:
 
-Dado un punto cartesiano deseado $$\mathbf{p}_d = [x_d, y_d, z_d]^T$$, el objetivo es encontrar los incrementos articulares $$\Delta\mathbf{q}$$ que minimicen el error:
+1. **`ik_numerica.py`** — como fallback de la IK analítica (Levenberg-Marquardt)
+2. **`trajectory_planner.py`** — para verificar y planificar trayectorias cartesianas
 
-$$
-\mathbf{e}(t) = \mathbf{p}_d - \mathbf{p}(\mathbf{q}(t))
-$$
+La relación entre velocidades articulares y cartesianas es:
+
+$$\dot{\mathbf{x}} = J(\mathbf{q})\,\dot{\mathbf{q}}$$
+
+donde $$J \in \mathbb{R}^{6\times6}$$ incluye tanto la parte de traslación (filas 1-3) como de rotación (filas 4-6).
 
 ---
 
-## 3.2 El Jacobiano del UR3
+## 3.2 Jacobiano Numérico — Código Real
 
-El **Jacobiano geométrico** $$J(\mathbf{q}) \in \mathbb{R}^{6\times6}$$ relaciona las velocidades articulares con las velocidades cartesianas del TCP:
-
-$$
-\dot{\mathbf{x}} = J(\mathbf{q})\,\dot{\mathbf{q}}
-$$
-
-Para el control de posición (solo traslación), usamos las primeras 3 filas $$J_v \in \mathbb{R}^{3\times6}$$:
-
-$$
-\dot{\mathbf{p}} = J_v(\mathbf{q})\,\dot{\mathbf{q}}
-$$
-
-La columna $$j$$ del Jacobiano para una articulación **rotacional** es:
-
-$$
-J_j = \begin{bmatrix} \mathbf{z}_{j-1} \times (\mathbf{p}_n - \mathbf{p}_{j-1}) \\ \mathbf{z}_{j-1} \end{bmatrix}
-$$
-
-donde $$\mathbf{z}_{j-1}$$ es el eje de rotación de la articulación $$j$$ y $$\mathbf{p}_n$$ es la posición del TCP.
-
-### Jacobiano Numérico (Diferencias Finitas)
-
-En la implementación se calcula el Jacobiano **numéricamente** perturbando cada articulación:
-
-$$
-J_{ij} \approx \frac{f_i(\mathbf{q} + h\,\mathbf{e}_j) - f_i(\mathbf{q})}{h}
-$$
-
-con $$h = 10^{-4}$$ rad.
+Del archivo `ik_numerica.py` del proyecto:
 
 ```python
-def jacobiano_numerico(q, h=1e-4):
-    """
-    Calcula el Jacobiano numérico 3×6 por diferencias finitas.
-    Solo posición (traslación), no orientación.
-    """
-    _, p0, _ = cinematica_directa(q)
-    J = np.zeros((3, 6))
-    for j in range(6):
-        dq = q.copy()
-        dq[j] += h
-        _, p_perturb, _ = cinematica_directa(dq)
-        J[:, j] = (p_perturb - p0) / h
+# ik_numerica.py — Jacobiano 6×6 por diferencias finitas
+def _jacobiano(q):
+    """Jacobiano 6×6 por diferencias finitas. dq = 1e-6 rad."""
+    dq = 1e-6
+    T0 = _cd(q)
+    p0 = T0[:3, 3]
+    R0 = T0[:3, :3]
+    J  = np.zeros((6, 6))
+
+    for i in range(6):
+        q2    = list(q)
+        q2[i] += dq
+        T2    = _cd(q2)
+        p2    = T2[:3, 3]
+        R2    = T2[:3, :3]
+
+        # Jacobiano de posición (primeras 3 filas)
+        J[:3, i] = (p2 - p0) / dq
+
+        # Jacobiano de orientación (últimas 3 filas) — axis-angle de dR = R2·R0ᵀ
+        dR = R2 @ R0.T
+        tr = np.trace(dR)
+        if tr > 3 - 1e-6:
+            w = np.zeros(3)
+        else:
+            angle = math.acos(np.clip((tr - 1) / 2, -1.0, 1.0))
+            if abs(angle) < 1e-6:
+                w = np.zeros(3)
+            else:
+                s  = 2 * math.sin(angle)
+                wx = (dR[2,1] - dR[1,2]) / s
+                wy = (dR[0,2] - dR[2,0]) / s
+                wz = (dR[1,0] - dR[0,1]) / s
+                w  = np.array([wx, wy, wz]) * angle / dq
+        J[3:, i] = w
+
     return J
 ```
 
 ---
 
-## 3.3 Ley de Control Proporcional
+## 3.3 Levenberg-Marquardt como Control Iterativo
 
-El controlador aplica la siguiente ley iterativa:
-
-$$
-\Delta\mathbf{q} = k_p \cdot J_v^+(\mathbf{q}) \cdot \mathbf{e}
-$$
-
-donde $$J_v^+ = J_v^T(J_v J_v^T + \lambda I)^{-1}$$ es la pseudoinversa amortiguada (evita singularidades) y $$k_p$$ es la ganancia proporcional.
-
-Las articulaciones se actualizan:
+Del `ik_numerica.py` — la actualización LM con pesos diferenciados:
 
 $$
-\mathbf{q}_{k+1} = \mathbf{q}_k + \Delta\mathbf{q}_k
+\Delta\mathbf{q} = (J^T W J + \lambda I)^{-1} J^T W \mathbf{e}
 $$
+
+donde $$W = \text{diag}(10, 10, 10, 0.5, 0.5, 0.5)$$ prioriza la posición sobre la orientación.
+
+```python
+# ik_numerica.py — Loop de Levenberg-Marquardt (simplificado)
+W   = np.diag([10.0, 10.0, 10.0, 0.5, 0.5, 0.5])  # posición >> orientación
+lam = 0.05   # factor de amortiguamiento
+
+for _ in range(max_iter):
+    T   = _cd(q)
+    e   = np.concatenate([p_target - T[:3,3],
+                          error_orientacion(R_target, T[:3,:3])])
+
+    if np.linalg.norm(e[:3]) < tol:
+        break  # convergió en posición
+
+    J    = _jacobiano(q)
+    JtW  = J.T @ W
+    delta = np.linalg.solve(JtW @ J + lam * np.eye(6), JtW @ e)
+    q   += delta
+
+    # Límites articulares UR3
+    q = np.clip(q,
+        [-3.14, -3.14, -1.57, -3.14, -3.14, -3.14],
+        [ 3.14,  0.0,   1.57,  3.14,  3.14,  3.14])
+```
 
 ---
 
-## 3.4 Implementación en Python
+## 3.4 Planificación de Trayectorias con Polinomio Quíntico
+
+El módulo `trajectory_planner.py` implementa la generación de trayectorias suaves. Este es el código **real** del proyecto:
 
 ```python
+# trajectory_planner.py — Polinomio quíntico real del proyecto
 import numpy as np
 
-def control_cinematico(p_deseada, q_inicial, kp=0.8, tol=1e-4,
-                       max_iter=1000, lambda_damp=1e-4):
+def polinomio_quintico(x0: float, xf: float,
+                       t_total: float = 4.0, n: int = 50):
     """
-    Control cinemático proporcional para alcanzar posición cartesiana.
+    Genera trayectoria suave de 5° grado entre x0 y xf.
+    Condiciones: v(0)=v(tf)=0, a(0)=a(tf)=0.
 
-    Args:
-        p_deseada: array [x, y, z] en metros
-        q_inicial: array de 6 ángulos iniciales en radianes
-        kp:        ganancia proporcional
-        tol:       tolerancia de error (metros)
-        max_iter:  máximo de iteraciones
-        lambda_damp: amortiguamiento para pseudoinversa
-
-    Returns:
-        q: ángulos articulares solución (radianes)
-        historial_error: lista de errores por iteración
+    El sistema 6×6 se construye como:
+      x(t)   = a5·t⁵ + a4·t⁴ + a3·t³ + a2·t² + a1·t + a0
+      v(t)   = 5a5·t⁴ + 4a4·t³ + 3a3·t² + 2a2·t + a1
+      a(t)   = 20a5·t³ + 12a4·t² + 6a3·t + 2a2
     """
-    q = q_inicial.copy()
-    historial_error = []
+    tf = t_total
 
-    for i in range(max_iter):
-        # Posición actual del TCP
-        _, p_actual, _ = cinematica_directa(q)
+    A = np.array([
+        [0,       0,      0,      0,    0, 1],   # x(0)  = x0
+        [tf**5,  tf**4,  tf**3,  tf**2, tf, 1],  # x(tf) = xf
+        [0,       0,      0,      0,    1, 0],   # v(0)  = 0
+        [5*tf**4, 4*tf**3, 3*tf**2, 2*tf, 1, 0], # v(tf) = 0
+        [0,       0,      0,      2,    0, 0],   # a(0)  = 0
+        [20*tf**3, 12*tf**2, 6*tf, 2,   0, 0],   # a(tf) = 0
+    ])
+    B = np.array([x0, xf, 0, 0, 0, 0])
+    coeffs = np.linalg.solve(A, B)
+    a5, a4, a3, a2, a1, a0 = coeffs
 
-        # Error cartesiano
-        error = p_deseada - p_actual
-        norma_error = np.linalg.norm(error)
-        historial_error.append(norma_error)
+    t   = np.linspace(0, tf, n)
+    pos = a5*t**5 + a4*t**4 + a3*t**3 + a2*t**2 + a1*t + a0
+    vel = 5*a5*t**4 + 4*a4*t**3 + 3*a3*t**2 + 2*a2*t + a1
+    acc = 20*a5*t**3 + 12*a4*t**2 + 6*a3*t + 2*a2
 
-        # Convergencia
-        if norma_error < tol:
-            print(f"Convergencia en iteración {i}: error = {norma_error*1000:.3f} mm")
-            break
-
-        # Jacobiano numérico (solo posición)
-        J = jacobiano_numerico(q)
-
-        # Pseudoinversa amortiguada (evita singularidades)
-        JJt = J @ J.T
-        J_pinv = J.T @ np.linalg.inv(JJt + lambda_damp * np.eye(3))
-
-        # Actualizar articulaciones
-        delta_q = kp * J_pinv @ error
-        q = q + delta_q
-
-    return q, historial_error
+    return pos, vel, acc, t
 ```
 
 ---
 
-## 3.5 Ejemplo Práctico — De HOME a Posición de Pick
+## 3.5 Integración con `robot_controller.py` — Tiempo Quíntico
 
-### Objetivo
-
-Mover el TCP desde la posición HOME hasta $$[0.2\,\text{m},\; -0.3\,\text{m},\; 0.16\,\text{m}]$$, que corresponde a la posición de agarre de un cubo real en el proyecto.
+La planificación quíntica del tiempo de movimiento se integra directamente en `robot_controller.py`:
 
 ```python
-import numpy as np
-import matplotlib.pyplot as plt
+# robot_controller.py — calcular_tf_quintico
+def calcular_tf_quintico(joints_inicio_deg, joints_fin_deg,
+                         vel_max_rad=VEL_J, acel_max_rad=ACEL_J):
+    """
+    Calcula el tiempo óptimo tf usando el polinomio quíntico.
 
-# Condición inicial: HOME
-q_home = np.deg2rad([0, -90, -90, 0, 90, 0])
+    Para el polinomio quíntico con v0=vf=a0=af=0:
+      v_max = (15/8) · |qf-q0| / tf
+      a_max ≈ 10√3/3 · |qf-q0| / tf²
 
-# Posición deseada: punto de pick de un cubo
-p_deseada = np.array([0.20, -0.30, 0.16])  # metros
+    Restricciones:
+      tf ≥ (15/8) · |dq| / vel_max        (velocidad)
+      tf ≥ sqrt(10√3/3 · |dq| / acel_max)  (aceleración)
+    """
+    tf_min = 0.5  # mínimo absoluto
 
-# Ejecutar control cinemático
-q_sol, errores = control_cinematico(
-    p_deseada=p_deseada,
-    q_inicial=q_home,
-    kp=0.8,
-    tol=1e-4,
-    max_iter=500
-)
+    for q0_deg, qf_deg in zip(joints_inicio_deg, joints_fin_deg):
+        dq = abs(math.radians(qf_deg - q0_deg))
+        if dq < 1e-6:
+            continue
+        tf_vel  = (15.0 / 8.0) * dq / vel_max_rad
+        tf_acel = math.sqrt((10.0 * math.sqrt(3.0) / 3.0) * dq / acel_max_rad)
+        tf_min  = max(tf_min, tf_vel, tf_acel)
 
-# Verificar resultado
-_, p_final, _ = cinematica_directa(q_sol)
-print("\n--- RESULTADO ---")
-print(f"Posición deseada:  x={p_deseada[0]*1000:.1f}, y={p_deseada[1]*1000:.1f}, z={p_deseada[2]*1000:.1f} mm")
-print(f"Posición obtenida: x={p_final[0]*1000:.1f}, y={p_final[1]*1000:.1f}, z={p_final[2]*1000:.1f} mm")
-print(f"Error final: {np.linalg.norm(p_final - p_deseada)*1000:.3f} mm")
-print(f"Iteraciones: {len(errores)}")
-print(f"\nÁngulos solución (grados): {np.round(np.rad2deg(q_sol), 2)}")
+    return tf_min
 ```
 
-**Salida:**
-
-```
-Convergencia en iteración 47: error = 0.092 mm
-
---- RESULTADO ---
-Posición deseada:  x=200.0, y=-300.0, z=160.0 mm
-Posición obtenida: x=200.0, y=-300.0, z=160.0 mm
-Error final: 0.092 mm
-Iteraciones: 48
-Ángulos solución (grados): [ 11.54  -98.23  -96.41  -75.36   90.0   11.54]
-```
-
-### Gráfica de Convergencia del Error
+El tiempo calculado se pasa directamente al comando `movej` como parámetro `t=tf`:
 
 ```python
-# Gráfica de convergencia
-plt.figure(figsize=(10, 5))
-plt.semilogy(np.array(errores) * 1000, 'b-o', markersize=3, linewidth=1.5)
-plt.axhline(0.1, color='r', linestyle='--', label='Tolerancia 0.1 mm')
-plt.xlabel('Iteración')
-plt.ylabel('Error cartesiano (mm)')
-plt.title('Convergencia del Control Cinemático\nHOME → [200, -300, 160] mm')
-plt.legend()
-plt.grid(True, alpha=0.3)
-plt.tight_layout()
-plt.savefig('assets/img/convergencia_control.png', dpi=150)
-plt.show()
-```
+# robot_controller.py — _move_j con planificación quíntica
+def _move_j(self, joints_deg, lento=False, usar_quintico=False):
+    vel  = VEL_LENTO if lento else VEL_J     # 0.25 o 1.0 rad/s
+    acel = ACEL_LENTO if lento else ACEL_J   # 0.20 o 0.30 rad/s²
 
-![Gráfica de convergencia del error cartesiano]( ../assets/img/convergencia_control.png)
+    if usar_quintico:
+        tf = calcular_tf_quintico(self._pos_actual, joints_deg,
+                                   vel_max_rad=vel, acel_max_rad=acel)
+        t_espera = tf + 0.8   # margen de seguridad
+        # movej([q1..q6], a=acel, v=vel, t=tf)  ← t fuerza duración
+        _enviar_script(_build_movej(joints_deg, vel=vel, acel=acel, tf=tf),
+                       esperar=t_espera)
+    else:
+        t_espera = _tiempo_movej(self._pos_actual, joints_deg, vel=vel)
+        _enviar_script(_build_movej(joints_deg, vel=vel, acel=acel),
+                       esperar=t_espera)
+```
 
 ---
 
-## 3.6 Comparación con Cinemática Inversa Analítica
+## 3.6 Comparación: Control Cinemático vs. IK Analítica
 
-| Criterio | Control Cinemático | IK Analítica |
-|---|---|---|
-| **Velocidad** | ~50 iteraciones, ~5 ms | Cálculo directo, < 1 ms |
-| **Precisión** | ~0.1 mm (ajustable) | Exacta (precisión numérica) |
-| **Singularidades** | Manejo con amortiguamiento | Detección explícita |
-| **Orientación** | Solo posición (3 DOF) | Posición + orientación (6 DOF) |
-| **Configuración** | Puede converger a solución subóptima | Selección explícita de rama |
-| **Tiempo real** | Adecuado para trayectorias lentas | Óptimo para pick and place |
-| **Implementación** | Simple, genérica | Específica para cada robot |
-
-### ¿Cuándo usar cada enfoque?
-
-- **Control cinemático:** Útil para seguimiento de trayectorias continuas, teleoperation o cuando no se dispone de solución analítica. Requiere ajuste fino de $$k_p$$ y $$\lambda$$.
-
-- **IK analítica:** Preferida para pick and place industrial donde se necesita máxima velocidad, solución exacta y selección de configuración (codo arriba/abajo). Es el método utilizado en este proyecto.
-
-> **Elección del proyecto:** Se utiliza la **IK analítica** para todas las operaciones de pick and place del CoBot, ya que garantiza convergencia instantánea (< 1 ms) y permite seleccionar explícitamente la rama de solución deseada (codo abajo, rama positiva de $$q_1$$).
+| Criterio | Control Cinemático (LM) | IK Analítica |
+|---|:---:|:---:|
+| **Velocidad** | 2–15 ms | < 1 ms |
+| **Orientación** | Controlada (W ponderado) | Exacta |
+| **Configuración** | Depende del punto inicial | Explícita (elbow/rama) |
+| **Singularidades** | Amortiguamiento λ | Detección explícita |
+| **Uso en el proyecto** | Fallback (estrategia 5) | Principal (estrategia 1) |
 
 ---
 

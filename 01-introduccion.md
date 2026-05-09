@@ -2,15 +2,15 @@
 layout: default
 title: Introducción
 nav_order: 2
-description: "Contexto, hardware y objetivos del CoBot Clasificador de Colores"
+description: "Contexto del problema, hardware real y objetivos del CoBot Clasificador"
 permalink: /01-introduccion/
 ---
 
 # 1. Introducción
 {: .no_toc }
 
-Contexto del problema, descripción del hardware y objetivos del proyecto.
-{: .fs-6 .fw-300 }
+Contexto del problema, descripción del hardware real y objetivos del proyecto.
+{: .fs-5 .fw-300 }
 
 ## Tabla de Contenidos
 {: .no_toc .text-delta }
@@ -22,16 +22,11 @@ Contexto del problema, descripción del hardware y objetivos del proyecto.
 
 ## 1.1 Contexto del Problema
 
-En entornos industriales de manufactura y logística, la **clasificación manual de piezas** representa una tarea repetitiva, lenta y propensa a errores humanos. Cuando cubos de diferentes colores se depositan de forma desordenada sobre una superficie compartida, un operador debe identificar visualmente el color de cada pieza y transportarla a su zona de destino correspondiente, lo que implica:
+En entornos industriales de manufactura y logística, la **clasificación manual de piezas** representa una tarea repetitiva, lenta y propensa a errores. En este proyecto se aborda el caso específico de cubos de colores (rojo, verde, azul) depositados de forma desordenada sobre una superficie compartida, donde un operador debe identificarlos visualmente y transportarlos a su zona de destino.
 
-- Fatiga cognitiva y física a lo largo de turnos prolongados
-- Variabilidad en el tiempo de ciclo según el estado del operador
-- Riesgo de clasificación errónea bajo condiciones de iluminación variable
-- Baja escalabilidad ante incrementos en el volumen de piezas
+El **CoBot Clasificador de Colores** resuelve este problema integrando un brazo robótico colaborativo con visión artificial en tiempo real, eliminando la intervención humana durante la operación de clasificación y garantizando tiempos de ciclo constantes con precisión submilimétrica.
 
-El **CoBot Clasificador de Colores** resuelve este problema integrando un brazo robótico colaborativo con visión artificial en tiempo real, eliminando la intervención humana durante la operación de clasificación y garantizando tiempos de ciclo constantes y precisión submilimétrica.
-
-> **Definición del problema:** Dado un conjunto de cubos de colores (rojo, verde, azul) depositados aleatoriamente en un área de trabajo compartida, el sistema debe identificar cada cubo, calcular su posición cartesiana precisa y transportarlo autónomamente a su zona de color asignada.
+> **Problema formal:** Dado un conjunto de cubos de colores depositados aleatoriamente en un área de trabajo de 920 × 420 mm, detectar cada cubo mediante visión artificial, calcular su posición cartesiana, calcular la cinemática inversa y ejecutar el ciclo de pick and place autónomamente.
 
 ---
 
@@ -39,7 +34,10 @@ El **CoBot Clasificador de Colores** resuelve este problema integrando un brazo 
 
 ### 1.2.1 Brazo Robótico — Universal Robots UR3
 
-El manipulador principal es el **UR3 de Universal Robots**, un robot colaborativo de 6 grados de libertad diseñado para cargas útiles de hasta 3 kg y alcance máximo de 500 mm.
+![Robot UR3 con cubos de colores en el área de trabajo](../assets/img/robot-workspace.jpeg)
+*UR3 de 6 GDL sobre el área de trabajo. Se pueden observar los cubos rojo, verde y azul, las zonas de destino marcadas con papel de color y la estructura de aluminio.*
+
+El manipulador principal es el **UR3 de Universal Robots**, robot colaborativo de 6 grados de libertad diseñado para cargas útiles de hasta 3 kg.
 
 | Parámetro | Valor |
 |---|---|
@@ -47,105 +45,128 @@ El manipulador principal es el **UR3 de Universal Robots**, un robot colaborativ
 | **Carga útil máxima** | 3 kg |
 | **Alcance** | 500 mm |
 | **Repetibilidad** | ±0.1 mm |
-| **Peso del robot** | 11.2 kg |
-| **Protección** | IP54 |
-| **Interfaz de programación** | TCP/IP puerto 30002 (URScript) |
-| **Velocidad máx. articulación** | 180 °/s |
+| **Interfaz de programación** | TCP/IP puerto 30002 (URScript directo) |
+| **IP en el proyecto** | 192.168.1.74 |
+| **Modo de operación** | REMOTE (sin teach pendant) |
 
-El UR3 se controla mediante **comandos URScript** enviados directamente a través de un socket TCP al puerto 30002, sin necesidad de un teach pendant o interfaz gráfica durante la operación autónoma.
+El UR3 se controla mediante comandos **URScript** (`movej`) enviados directamente a través de un socket TCP al puerto 30002, sin necesidad de RoboDK ni de ningún software intermediario.
 
 ### 1.2.2 Gripper — OnRobot Soft Gripper
 
-El efector final es un **gripper neumático OnRobot Soft Gripper** controlado mediante una API HTTP REST integrada al controlador del robot.
+![Gripper OnRobot realizando un pick sobre la zona verde](../assets/img/robot-gripper.jpeg)
+*OnRobot Soft Gripper durante la fase de APPROACH/PICK. Se observa el gripper bajando sobre la zona de destino verde.*
 
 | Parámetro | Valor |
 |---|---|
-| **Tipo** | Neumático de dedos suaves |
-| **Interfaz** | HTTP REST (JSON) |
-| **Endpoint grip** | `POST /api/v1/gripper/grip` |
-| **Endpoint release** | `POST /api/v1/gripper/release` |
-| **Tiempo de respuesta** | ~200 ms |
+| **Tipo** | Neumático de dedos suaves (soft gripper) |
+| **Interfaz** | HTTP REST (API OnRobot) |
+| **IP en el proyecto** | 192.168.1.1 (brida OnRobot) |
+| **Endpoint grip** | `POST /api/dc/weblogic/run/7742` |
+| **Endpoint release** | `POST /api/dc/weblogic/run/335` |
+| **Inicialización** | `GET /api/dc/sg/initialize/0/1` |
+| **Tiempo de cierre** | ~2.0 s (incluye margen de seguridad) |
 
 ```python
-# Control del gripper OnRobot vía HTTP REST
+# robot_controller.py — Control del gripper OnRobot vía HTTP REST
 import requests
 
-GRIPPER_URL = "http://192.168.1.1"  # IP del controlador OnRobot
+IP_BRIDA    = "192.168.1.1"
+URL_INIT    = f"http://{IP_BRIDA}/api/dc/sg/initialize/0/1"
+URL_GRIP    = f"http://{IP_BRIDA}/api/dc/weblogic/run/7742"
+URL_RELEASE = f"http://{IP_BRIDA}/api/dc/weblogic/run/335"
 
-def grip():
-    """Activa el gripper para agarrar un cubo."""
-    response = requests.post(f"{GRIPPER_URL}/api/v1/gripper/grip")
-    return response.status_code == 200
+def cerrar_brida(self):
+    respuesta = requests.post(URL_GRIP, timeout=3)
+    if respuesta.status_code == 200:
+        print("  [Brida] GRIP ✓")
+    time.sleep(2.0)  # Tiempo para que agarre bien
 
-def release():
-    """Libera el gripper para soltar un cubo."""
-    response = requests.post(f"{GRIPPER_URL}/api/v1/gripper/release")
-    return response.status_code == 200
+def abrir_brida(self):
+    respuesta = requests.post(URL_RELEASE, timeout=3)
+    if respuesta.status_code == 200:
+        print("  [Brida] RELEASE ✓")
+    time.sleep(2.0)  # Tiempo para soltar bien
 ```
 
 ### 1.2.3 Cámara — Logitech C920
 
-La cámara de visión artificial es una **Logitech C920** montada en configuración **top-down** (vista cenital) sobre el área de trabajo.
+La cámara de visión artificial es una **Logitech C920** montada en configuración **top-down** (vista cenital) sobre el área de trabajo, compartiendo la misma instancia `cv2.VideoCapture` entre el módulo de calibración ArUco y el detector de cubos.
 
 | Parámetro | Valor |
 |---|---|
-| **Modelo** | Logitech C920 HD Pro Webcam |
-| **Resolución** | 1920 × 1080 px (operación: 1280 × 720) |
+| **Modelo** | Logitech C920 HD Pro |
+| **Resolución de operación** | 1280 × 720 px |
 | **FPS** | 30 fps |
-| **Montaje** | Top-down sobre el área de trabajo |
-| **Conexión** | USB 2.0 / 3.0 |
-| **Campo visual** | Cubre el área de trabajo completa (920 × 420 mm) |
+| **Índice en el sistema** | 1 (cámara 0 = webcam integrada) |
+| **Buffer** | 1 frame (para evitar latencia) |
+| **Distorsión** | Radial barrel (K = −2×10⁻⁵, actualmente desactivada por la H) |
 
-La posición fija de la cámara permite calcular una **homografía estática** al inicio de cada sesión usando marcadores ArUco, que transforma coordenadas de píxel a milímetros en el espacio del robot.
+```python
+# main.py — Apertura de cámara compartida entre calibración y detección
+import cv2
+
+cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)  # índice 1, Windows DirectShow
+cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT,  720)
+cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)       # ← buffer=1 para latencia mínima
+time.sleep(1.2)  # calentar sensor antes de capturar ArUcos
+```
 
 ---
 
 ## 1.3 Área de Trabajo y Zonas de Color
 
-El área de trabajo mide **920 mm × 420 mm** y está dividida en tres zonas fijas de destino para la clasificación:
+El área de trabajo mide **920 mm × 420 mm** y está dividida en tres zonas de destino marcadas con papel de color sobre la superficie. Las zonas están definidas en `zone_manager.py`:
 
+```python
+# zone_manager.py — Definición real de zonas
+ZONAS = {
+    "VERDE": {
+        "centro_x":  275.0,   # mm en coordenadas del robot
+        "centro_y": -294.0,
+        "ancho":    250.0,
+        "alto":     420.0,
+        "slots_nx":   2,
+        "slots_ny":   2,
+    },
+    "ROJO": {
+        "centro_x":   0.0,
+        "centro_y": -294.0,
+        "ancho":    250.0,
+        "alto":     420.0,
+        "slots_nx":   2,
+        "slots_ny":   2,
+    },
+    "AZUL": {
+        "centro_x": -275.0,
+        "centro_y": -294.0,
+        "ancho":    250.0,
+        "alto":     420.0,
+        "slots_nx":   2,
+        "slots_ny":   2,
+    },
+}
 ```
-┌─────────────────────────────────────────────────────┐
-│                                                     │
-│   ZONA VERDE        ZONA ROJA        ZONA AZUL      │
-│   (Izquierda)       (Centro)        (Derecha)       │
-│   X: -460 a -150    X: -150 a 150   X: 150 a 460   │
-│   Y: -510 a -90     Y: -510 a -90   Y: -510 a -90  │
-│                                                     │
-│         ← ← ← 920 mm → → →                         │
-└─────────────────────────────────────────────────────┘
-```
 
-| Zona | Color | Posición X (mm) | Posición Y (mm) |
-|---|---|---|---|
-| **Izquierda** | 🟢 Verde | -300 | -300 |
-| **Centro** | 🔴 Rojo | 0 | -300 |
-| **Derecha** | 🔵 Azul | 300 | -300 |
+| Zona | Color | Centro X (mm) | Centro Y (mm) | Posición visual |
+|---|---|:---:|:---:|---|
+| **Verde** | 🟢 Verde | +275 | -294 | Derecha (desde la cámara) |
+| **Rojo** | 🔴 Rojo | 0 | -294 | Centro |
+| **Azul** | 🔵 Azul | -275 | -294 | Izquierda (desde la cámara) |
 
-Las coordenadas están expresadas en el sistema de referencia de la **base del robot UR3**, con origen en el centro de la brida de montaje.
+> **Nota:** La orientación de los ejes depende de dónde está montada la base del UR3. Los valores positivos de X apuntan hacia el lado donde está instalado el robot.
 
 ---
 
-## 1.4 Arquitectura del Sistema
+## 1.4 Alturas de Operación
 
-El sistema se compone de cuatro módulos principales que operan concurrentemente:
+El sistema trabaja con tres alturas Z fijas, configurables desde el menú de `main.py`:
 
-```
-┌─────────────────┐     ┌─────────────────┐
-│  camera_detector │────▶│  zone_manager   │
-│  (Hilo visión)  │     │  (Lógica SORT)  │
-└─────────────────┘     └────────┬────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │   robot_controller      │
-                    │   (IK + TCP + Gripper)  │
-                    └─────────────────────────┘
-                                 │
-                    ┌────────────▼────────────┐
-                    │   UR3  ←→  Gripper      │
-                    │   TCP:30002  HTTP REST  │
-                    └─────────────────────────┘
-```
+| Fase | Z (mm) | Descripción |
+|---|:---:|---|
+| **PREMOVE** | 240 | Tránsito alto — evita colisiones con estructura y barras |
+| **APPROACH** | 210 | Pre-agarre — se detiene y verifica alineación antes de bajar |
+| **PICK / PLACE** | 160 | Contacto — altura de agarre y depósito del cubo |
 
 ---
 
@@ -153,24 +174,18 @@ El sistema se compone de cuatro módulos principales que operan concurrentemente
 
 ### Objetivo General
 
-Desarrollar un sistema autónomo de clasificación robótica que integre visión artificial con cinemática inversa analítica para clasificar cubos de colores mediante un brazo UR3, operando en tiempo real sin intervención humana.
+Desarrollar un sistema autónomo de clasificación robótica que integre visión artificial con cinemática inversa analítica para clasificar cubos de colores mediante el UR3, operando en tiempo real sin intervención humana.
 
 ### Objetivos Específicos
 
-1. **Implementar la cinemática directa** del UR3 mediante los parámetros Denavit-Hartenberg para calcular la posición del TCP dado un vector articular.
-
-2. **Derivar y programar la cinemática inversa analítica** del UR3 para calcular los 6 ángulos articulares dado un punto cartesiano y orientación deseados.
-
-3. **Implementar el algoritmo Levenberg-Marquardt** como método numérico alternativo de cinemática inversa y comparar con el método analítico.
-
-4. **Diseñar trayectorias suaves** usando polinomios quínticos y perfil trapezoidal de velocidad para las fases de pick and place.
-
-5. **Calibrar la homografía cámara-robot** usando marcadores ArUco para transformar coordenadas de píxel a milímetros con precisión < 5 mm.
-
-6. **Implementar el pipeline de visión** con segmentación HSV, filtros morfológicos y corrección de distorsión para detectar cubos de colores de forma robusta.
-
-7. **Integrar el sistema completo** en los modos GO (clasificar un cubo individual) y SORT (clasificar todos los cubos mal colocados de forma autónoma).
+1. Implementar la **cinemática directa** del UR3 con los parámetros DH reales.
+2. Derivar y programar la **cinemática inversa analítica** con cascada de fallback (4 ramas + Levenberg-Marquardt).
+3. Diseñar **trayectorias suaves** con polinomios quínticos para las 3 fases de pick.
+4. Calibrar la **homografía cámara-robot** con ArUco (error < 8 mm).
+5. Implementar el **pipeline de visión** con segmentación HSV robusta ante variaciones de iluminación.
+6. Integrar el sistema en los modos **GO** (un cubo) y **SORT** (todos los mal colocados).
+7. Obtener reconocimiento en el **Día de las Ingenierías IBERO 2026** — ✅ 3er Lugar.
 
 ---
 
-[← Inicio](/) &nbsp;&nbsp; [Cinemática Directa →](../02-cinematica-directa){: .btn .btn-outline }
+[← Inicio](../) &nbsp;&nbsp; [Cinemática Directa →](../02-cinematica-directa){: .btn .btn-outline }

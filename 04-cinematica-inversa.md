@@ -3,15 +3,15 @@ layout: default
 title: Cinemática Inversa
 nav_order: 5
 has_children: true
-description: "Métodos analítico y numérico de cinemática inversa para el UR3"
+description: "IK analítica con cascada de 5 estrategias de fallback"
 permalink: /04-cinematica-inversa/
 ---
 
 # 4. Cinemática Inversa
 {: .no_toc }
 
-Métodos para calcular los ángulos articulares del UR3 dada una pose cartesiana deseada.
-{: .fs-6 .fw-300 }
+Sistema de IK con cascada de 5 estrategias: analítica → ramas alternativas → barrido Z → proyección XY → Levenberg-Marquardt.
+{: .fs-5 .fw-300 }
 
 ## Tabla de Contenidos
 {: .no_toc .text-delta }
@@ -21,83 +21,121 @@ Métodos para calcular los ángulos articulares del UR3 dada una pose cartesiana
 
 ---
 
-## 4.1 Planteamiento del Problema
+## 4.1 El Problema Real
 
-La **cinemática inversa (IK)** resuelve el problema dual a la cinemática directa: dado un punto cartesiano y una orientación deseados del TCP, encontrar el vector articular $$\mathbf{q}$$ que los produce.
+En el proyecto, la IK debe resolverse para tres posiciones diferentes en cada pick:
 
-Formalmente, para el UR3 con 6 GDL:
+```python
+# main.py — calcular_y_mostrar_ik
+ik_premove  = calcular_ik(x_m, y_m, z_premove_m,  ...)  # Z=240 mm
+ik_approach = calcular_ik(x_m, y_m, z_approach_m, ...)  # Z=210 mm
+ik_pick     = calcular_ik(x_m, y_m, z_pick_m,     ...)  # Z=160 mm
+```
 
-$$
-\text{Dado: } \mathbf{T}_d = \begin{bmatrix} \mathbf{R}_d & \mathbf{p}_d \\ \mathbf{0} & 1 \end{bmatrix} \quad \Rightarrow \quad \text{Encontrar: } \mathbf{q} = [q_1, q_2, q_3, q_4, q_5, q_6]
-$$
-
-tal que $$T_0^6(\mathbf{q}) = \mathbf{T}_d$$.
+Si **cualquiera de las tres falla**, el pick no puede ejecutarse. Esto impulsó el diseño de una IK robusta con cascada de fallbacks.
 
 ---
 
 ## 4.2 Ramas de Solución
 
-Para un robot de 6 GDL como el UR3, la cinemática inversa tiene **hasta 8 soluciones** (configuraciones) que alcanzan la misma pose. Las ramas principales son:
+El UR3 tiene hasta 8 soluciones para cada pose. Las dos ramas principales configurables en `main.py → CONFIG`:
 
-### Rama de $$q_1$$: Positiva / Negativa
-
-$$q_1$$ tiene dos soluciones geométricamente distintas según el signo de la raíz cuadrada en la derivación:
-
-| Rama | Descripción | Uso en el proyecto |
+| Parámetro | Opciones | Default |
 |---|---|---|
-| **Positiva** | $$q_1 > 0$$ (robot girado a la izquierda) | Zona verde e izquierda |
-| **Negativa** | $$q_1 < 0$$ (robot girado a la derecha) | Zona roja y azul |
+| `rama_q2` | `"elbow_up"` / `"elbow_down"` | `"elbow_up"` |
+| `rama_q1` | `"pos"` / `"neg"` | `"pos"` |
 
-### Rama del Codo: Arriba / Abajo
+### Configuración elegida para el proyecto
 
-La articulación $$q_3$$ tiene dos soluciones ($$q_3 > 0$$ o $$q_3 < 0$$) que dan lugar a las configuraciones de codo arriba (*elbow up*) y codo abajo (*elbow down*).
-
-| Configuración | $$q_3$$ | Características |
-|---|:---:|---|
-| **Elbow Down** | $$< 0$$ | Mayor alcance, evita colisiones con mesa |
-| **Elbow Up** | $$> 0$$ | Menor alcance, útil para posiciones altas |
-
-> **Configuración elegida:** El proyecto usa **elbow down + rama positiva de $$q_1$$** para todas las operaciones de clasificación, ya que el área de trabajo está bajo el plano del hombro y esta configuración evita colisiones con la superficie de la mesa.
-
----
-
-## 4.3 Método Analítico vs. Métodos Numéricos
-
-Para seleccionar el método de IK adecuado para una aplicación industrial en tiempo real, se comparan las principales alternativas:
-
-| Criterio | Analítico | Levenberg-Marquardt | Jacobiano Transpuesto | CCD |
-|---|:---:|:---:|:---:|:---:|
-| **Velocidad** | ⚡ < 1 ms | 🔶 2–10 ms | 🔶 1–5 ms | 🔶 1–5 ms |
-| **Solución exacta** | ✅ Sí | ✅ Con tolerancia | ✅ Con tolerancia | ✅ Con tolerancia |
-| **Selección de rama** | ✅ Explícita | ❌ Depende del inicial | ❌ Depende del inicial | ❌ Depende del inicial |
-| **Manejo de singularidades** | 🔶 Detectables | ✅ Amortiguamiento | 🔶 Puede oscilar | 🔶 Puede oscilar |
-| **Implementación** | 🔶 Específica por robot | ✅ Genérica | ✅ Genérica | ✅ Genérica |
-| **Tiempo real (< 1 ms)** | ✅ Sí | ❌ No siempre | ❌ No siempre | ❌ No siempre |
-
-### ¿Por qué se eligió el método analítico?
-
-1. **Velocidad garantizada:** El cálculo analítico completa los 6 ángulos en una sola pasada (< 1 ms), permitiendo ciclos de control de hasta 1 kHz.
-
-2. **Determinismo:** No depende del punto de partida ni de parámetros de convergencia. Siempre produce la misma solución para una rama dada.
-
-3. **Selección de configuración:** La rama (codo arriba/abajo) se puede especificar explícitamente, evitando movimientos inesperados del robot.
-
-4. **Aplicación industrial:** En pick and place real, el robot ejecuta entre 20 y 50 picks por minuto. Cada milisegundo de latencia se acumula y afecta el throughput.
-
-> **Conclusión:** Para el CoBot Clasificador de Colores, el método analítico es la elección natural. Se implementa también el método Levenberg-Marquardt como referencia académica y para posiciones fuera del workspace del analítico.
+```python
+CONFIG = {
+    "rama_q2": "elbow_up",   # ← q3 positivo: brazo extendido hacia arriba
+    "rama_q1": "pos",        # ← rama positiva de q1
+    ...
+}
+```
 
 ---
 
-## 4.4 Estructura de esta Sección
+## 4.3 Cascada de 5 Estrategias
 
-Esta sección cubre tres temas:
+La función `calcular_ik()` en `inverse_kinematics.py` implementa una cascada de 5 estrategias para maximizar la tasa de éxito:
 
-1. [**Método Geométrico (Analítico)**](04a-metodo-geometrico) — Derivación paso a paso de los 6 ángulos, código Python completo y validación con dos orientaciones.
+```python
+# inverse_kinematics.py — calcular_ik() con cascada completa
+def calcular_ik(px_m, py_m, pz_m, rot=None, rama_q2="elbow_up", rama_q1="pos"):
+    """
+    Cascada de 5 estrategias para maximizar la tasa de éxito de la IK.
+    """
 
-2. [**Levenberg-Marquardt**](04b-levenberg-marquardt) — Algoritmo numérico de minimización, código Python y comparativa de rendimiento.
+    # ── ESTRATEGIA 1: rama pedida ─────────────────────────────────────────
+    res = calcular_ik_raw(px_m, py_m, pz_m, rot, rama_q2, rama_q1)
+    if res["valido"]:
+        return res
 
-3. [**Planificación de Trayectorias**](04c-trayectorias) — Polinomios quínticos y perfil trapezoidal para las fases de pick and place.
+    # ── ESTRATEGIA 2: las 4 combinaciones de rama (elbow × shoulder) ─────
+    for r2, r1 in [("elbow_up","pos"), ("elbow_down","pos"),
+                   ("elbow_up","neg"), ("elbow_down","neg")]:
+        res = calcular_ik_raw(px_m, py_m, pz_m, rot, r2, r1)
+        if res["valido"]:
+            res["mensaje"] = "OK (rama alternativa)"
+            return res
+
+    # ── ESTRATEGIA 3: barrido de Z ±60 mm ────────────────────────────────
+    for dz_mm in [20, -20, 40, -40, 60, -60]:
+        pz_try = pz_m + dz_mm / 1000.0
+        res = _intentar_todas_ramas(px_m, py_m, pz_try, rot)
+        if res["valido"]:
+            res["mensaje"] = f"OK (Z ajustada {dz_mm:+d} mm)"
+            return res
+
+    # ── ESTRATEGIA 4: proyectar XY al radio seguro (0.40 m) ──────────────
+    R_MAX = 0.40
+    r_xy = math.sqrt(px_m**2 + py_m**2)
+    if r_xy > R_MAX:
+        factor  = R_MAX / r_xy
+        px_proj = px_m * factor
+        py_proj = py_m * factor
+        for pz_try in [pz_m] + [pz_m + dz/1000 for dz in [20,-20,40,-40]]:
+            res = _intentar_todas_ramas(px_proj, py_proj, pz_try, rot)
+            if res["valido"]:
+                return res
+
+    # ── ESTRATEGIA 5: IK numérica Levenberg-Marquardt ────────────────────
+    from ik_numerica import ik_numerica
+    return ik_numerica(px_m, py_m, pz_m)
+```
 
 ---
 
-[← Control Cinemático](../03-control-cinematico) &nbsp;&nbsp; [Método Geométrico →](04a-metodo-geometrico){: .btn .btn-outline }
+## 4.4 Orientación de Herramienta por Defecto
+
+La orientación estándar (herramienta apuntando hacia abajo) está definida en `inverse_kinematics.py`:
+
+```python
+# inverse_kinematics.py — orientación por defecto
+_DEFAULT_ROT = {
+    "nx": -0.7673, "ny": -0.6402, "nz":  0.0388,
+    "ox": -0.6413, "oy":  0.7664, "oz": -0.0371,
+    "ax": -0.0060, "ay": -0.0533, "az": -0.9986,
+}
+```
+
+Esta orientación fue obtenida empíricamente moviendo el robot a la posición de pick con el teach pendant y leyendo la pose del TCP.
+
+---
+
+## 4.5 Por qué IK Analítica como Principal
+
+| Criterio | Analítica | LM Numérico |
+|---|:---:|:---:|
+| **Tiempo de cómputo** | < 1 ms | 2–50 ms |
+| **Determinismo** | ✅ Siempre la misma solución | ❌ Depende del punto inicial |
+| **Selección de rama** | ✅ Explícita | ❌ Implícita |
+| **Manejo de singularidades** | ✅ Detección y mensaje | ✅ Amortiguamiento λ |
+| **Tiempo real** | ✅ Sí | 🔶 Marginal |
+| **Rol en el proyecto** | ✅ Principal (estrategias 1-4) | 🔶 Fallback (estrategia 5) |
+
+---
+
+[← Control Cinemático](../03-control-cinematico) &nbsp;&nbsp; [Método Analítico →](04a-metodo-geometrico){: .btn .btn-outline }

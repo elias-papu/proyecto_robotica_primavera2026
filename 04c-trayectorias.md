@@ -1,17 +1,17 @@
 ---
 layout: default
-title: Planificación de Trayectorias
+title: Trayectorias
 parent: Cinemática Inversa
 nav_order: 3
-description: "Polinomio quíntico y perfil trapezoidal para las fases de pick and place"
+description: "Polinomio quíntico real — trajectory_planner.py y robot_controller.py"
 permalink: /04-cinematica-inversa/04c-trayectorias/
 ---
 
 # 4c. Planificación de Trayectorias
 {: .no_toc }
 
-Polinomios quínticos y perfil trapezoidal de velocidad para movimientos suaves del UR3.
-{: .fs-6 .fw-300 }
+Polinomio quíntico de `trajectory_planner.py` integrado con el planificador de tiempo de `robot_controller.py`.
+{: .fs-5 .fw-300 }
 
 ## Tabla de Contenidos
 {: .no_toc .text-delta }
@@ -21,317 +21,120 @@ Polinomios quínticos y perfil trapezoidal de velocidad para movimientos suaves 
 
 ---
 
-## 4c.1 Polinomio Quíntico
+## 4c.1 Las 3 Fases del Pick
 
-### Motivación
+El sistema usa la nomenclatura real de `main.py`:
 
-Un **polinomio quíntico** (grado 5) permite especificar **6 condiciones de frontera**: posición, velocidad y aceleración en $$t_0$$ y $$t_f$$. Esto garantiza transiciones suaves (sin saltos de aceleración) en ambos extremos, esencial para no excitar vibraciones mecánicas ni sobrepasar los límites de torque.
+```
+HOME
+  │
+  ▼  [quíntico — tf calculado] ← calcular_tf_quintico()
+PREMOVE  (Z = 240 mm, misma XY del cubo)
+  │
+  ▼  [movej lento — vel=0.25, acel=0.2]
+APPROACH (Z = 210 mm, misma XY)  ← SE DETIENE AQUÍ
+  │
+  ▼  [movej lento]
+PICK     (Z = 160 mm, misma XY)  ← GRIP
+  │
+  ▼  [movej lento]
+APPROACH (retract)
+  │
+  ▼  [quíntico] → PLACE → RELEASE → HOME
+```
 
-### Condiciones de Frontera
-
-En $$t_0 = 0$$:
-$$s(0) = s_0, \quad \dot{s}(0) = v_0, \quad \ddot{s}(0) = a_0$$
-
-En $$t_f$$:
-$$s(t_f) = s_f, \quad \dot{s}(t_f) = v_f, \quad \ddot{s}(t_f) = a_f$$
-
-Para trayectorias de inicio y fin desde reposo: $$v_0 = v_f = a_0 = a_f = 0$$.
-
-### Sistema Matricial
-
-El polinomio $$s(t) = c_0 + c_1 t + c_2 t^2 + c_3 t^3 + c_4 t^4 + c_5 t^5$$ satisface:
-
-$$
-\mathbf{A}\,\mathbf{c} = \mathbf{b}
-$$
-
-$$
-\mathbf{A} = \begin{bmatrix}
-1 & 0 & 0 & 0 & 0 & 0 \\
-0 & 1 & 0 & 0 & 0 & 0 \\
-0 & 0 & 2 & 0 & 0 & 0 \\
-1 & t_f & t_f^2 & t_f^3 & t_f^4 & t_f^5 \\
-0 & 1 & 2t_f & 3t_f^2 & 4t_f^3 & 5t_f^4 \\
-0 & 0 & 2 & 6t_f & 12t_f^2 & 20t_f^3
-\end{bmatrix}
-, \quad
-\mathbf{b} = \begin{bmatrix} s_0 \\ v_0 \\ a_0 \\ s_f \\ v_f \\ a_f \end{bmatrix}
-$$
+> **Decisión de diseño:** Los tránsitos (HOME→PREMOVE, PREMOVE PICK→PREMOVE PLACE) usan planificación quíntica para minimizar el tiempo de ciclo. Las fases cerca del cubo (APPROACH→PICK→APPROACH) usan `movej` lento para máximo control.
 
 ---
 
-## 4c.2 Código Python — `trayectorias.py`
+## 4c.2 Código Real — `trajectory_planner.py`
 
 ```python
-"""
-trayectorias.py — Generación de trayectorias para el CoBot Clasificador.
-Módulo del proyecto de Elias Santiago Jiménez Hernández.
-Control Avanzado de Robots 2025, IBERO.
-"""
-import numpy as np
-import matplotlib.pyplot as plt
+# trajectory_planner.py — Polinomio quíntico completo
 
-
-def coeficientes_quintico(s0, sf, v0=0, vf=0, a0=0, af=0, tf=10.0):
+def polinomio_quintico(x0, xf, t_total=4.0, n=50):
     """
-    Calcula los coeficientes del polinomio quíntico.
-
-    Args:
-        s0, sf:    posición inicial y final
-        v0, vf:    velocidad inicial y final
-        a0, af:    aceleración inicial y final
-        tf:        tiempo final (s)
-
-    Returns:
-        c: array de 6 coeficientes [c0..c5]
+    Trayectoria suave de 5° grado.
+    Condiciones: x(0)=x0, x(tf)=xf, v(0)=v(tf)=0, a(0)=a(tf)=0.
     """
+    tf = t_total
     A = np.array([
-        [1,   0,      0,         0,          0,           0        ],
-        [0,   1,      0,         0,          0,           0        ],
-        [0,   0,      2,         0,          0,           0        ],
-        [1,   tf,     tf**2,     tf**3,      tf**4,       tf**5    ],
-        [0,   1,      2*tf,      3*tf**2,    4*tf**3,     5*tf**4  ],
-        [0,   0,      2,         6*tf,       12*tf**2,    20*tf**3 ],
+        [0,         0,        0,       0,    0, 1],   # x(0)=x0
+        [tf**5,    tf**4,    tf**3,   tf**2, tf, 1],  # x(tf)=xf
+        [0,         0,        0,       0,    1, 0],   # v(0)=0
+        [5*tf**4,  4*tf**3,  3*tf**2, 2*tf,  1, 0],  # v(tf)=0
+        [0,         0,        0,       2,    0, 0],   # a(0)=0
+        [20*tf**3, 12*tf**2,  6*tf,    2,    0, 0],   # a(tf)=0
     ])
-    b = np.array([s0, v0, a0, sf, vf, af])
-    return np.linalg.solve(A, b)
+    B      = np.array([x0, xf, 0, 0, 0, 0])
+    coeffs = np.linalg.solve(A, B)
+    a5, a4, a3, a2, a1, a0 = coeffs
+
+    t   = np.linspace(0, tf, n)
+    pos = a5*t**5 + a4*t**4 + a3*t**3 + a2*t**2 + a1*t + a0
+    vel = 5*a5*t**4 + 4*a4*t**3 + 3*a3*t**2 + 2*a2*t + a1
+    acc = 20*a5*t**3 + 12*a4*t**2 + 6*a3*t + 2*a2
+    return pos, vel, acc, t
 
 
-def evaluar_quintico(c, t_vec):
-    """Evalúa posición, velocidad y aceleración del polinomio quíntico."""
-    pos  = np.polyval(c[::-1], t_vec)
-    vel  = np.polyval(np.polyder(c[::-1]), t_vec)
-    acel = np.polyval(np.polyder(c[::-1], 2), t_vec)
-    return pos, vel, acel
-
-
-def trayectoria_xy(tf=10.0, dt=0.05):
-    """
-    Trayectorias en X e Y para la demostración del sistema.
-    X: 0.25 m → 0.30 m
-    Y: 0.10 m → 0.15 m
-    Condiciones de frontera: velocidades y aceleraciones = 0.
-    """
-    t_vec = np.arange(0, tf + dt, dt)
-
-    # Coeficientes para X
-    cx = coeficientes_quintico(s0=0.25, sf=0.30, tf=tf)
-    # Coeficientes para Y
-    cy = coeficientes_quintico(s0=0.10, sf=0.15, tf=tf)
-
-    pos_x,  vel_x,  acel_x  = evaluar_quintico(cx, t_vec)
-    pos_y,  vel_y,  acel_y  = evaluar_quintico(cy, t_vec)
-
-    return t_vec, pos_x, vel_x, acel_x, pos_y, vel_y, acel_y
-
-
-def graficar_trayectorias_xy():
-    """Grafica posición, velocidad y aceleración para X e Y."""
-    t, px, vx, ax_tray, py, vy, ay_tray = trayectoria_xy()
-
-    fig, axes = plt.subplots(2, 3, figsize=(15, 8))
-    fig.suptitle('Trayectorias Quínticas — X e Y\n'
-                 'CoBot Clasificador de Colores', fontsize=13)
-
-    for row, (pos, vel, acel, eje, color) in enumerate([
-        (px, vx, ax_tray, 'X', 'royalblue'),
-        (py, vy, ay_tray, 'Y', 'tomato'),
-    ]):
-        axes[row, 0].plot(t, pos * 1000, color=color, linewidth=2)
-        axes[row, 0].set_title(f'Posición {eje} (mm)')
-        axes[row, 0].set_xlabel('t (s)')
-        axes[row, 0].grid(True, alpha=0.3)
-
-        axes[row, 1].plot(t, vel * 1000, color=color, linewidth=2)
-        axes[row, 1].set_title(f'Velocidad {eje} (mm/s)')
-        axes[row, 1].set_xlabel('t (s)')
-        axes[row, 1].grid(True, alpha=0.3)
-
-        axes[row, 2].plot(t, acel * 1000, color=color, linewidth=2)
-        axes[row, 2].set_title(f'Aceleración {eje} (mm/s²)')
-        axes[row, 2].set_xlabel('t (s)')
-        axes[row, 2].grid(True, alpha=0.3)
-
-    plt.tight_layout()
-    plt.savefig('assets/img/trayectorias_xy.png', dpi=150)
-    plt.show()
+def planificar_trayectoria_cartesiana(p0, pf, t_total=4.0):
+    """Interpolación quíntica independiente en X, Y, Z."""
+    puntos = []
+    x_t, _, _, _ = polinomio_quintico(p0[0], pf[0], t_total)
+    y_t, _, _, _ = polinomio_quintico(p0[1], pf[1], t_total)
+    z_t, _, _, _ = polinomio_quintico(p0[2], pf[2], t_total)
+    for x, y, z in zip(x_t, y_t, z_t):
+        puntos.append([float(x), float(y), float(z)])
+    return puntos
 ```
 
 ---
 
-## 4c.3 Tres Fases del Pick and Place
-
-El movimiento de pick se divide en tres fases conectadas por polinomios quínticos:
-
-| Fase | Nombre | Altura Z (mm) | Descripción |
-|:---:|---|:---:|---|
-| 1 | **PREMOVE** | 240 | Posición de aproximación alta (evita colisiones) |
-| 2 | **APPROACH** | 210 | Posición de pre-agarre (verifica alineación) |
-| 3 | **PICK** | 160 | Posición de contacto y agarre |
+## 4c.3 Cálculo de `tf` — `robot_controller.py`
 
 ```python
-def fases_pick(x_cubo, y_cubo, tf_fase=2.0, dt=0.01):
+# robot_controller.py — calcular_tf_quintico()
+def calcular_tf_quintico(joints_inicio_deg, joints_fin_deg,
+                         vel_max_rad=1.0, acel_max_rad=0.3):
     """
-    Genera las trayectorias Z para las 3 fases de pick.
-    Las posiciones X e Y se mantienen constantes (ya se alcanzaron antes).
+    Calcula el tiempo mínimo tf para el movimiento quíntico.
 
-    Retorna: lista de (t, z) para cada fase
+    Para el polinomio quíntico con v0=vf=a0=af=0:
+      v_max = (15/8) · |dq| / tf   → tf ≥ (15/8) · |dq| / vel_max
+      a_max ≈ 10√3/3 · |dq| / tf² → tf ≥ sqrt(10√3/3 · |dq| / acel_max)
     """
-    z_premove  = 0.240  # m
-    z_approach = 0.210  # m
-    z_pick     = 0.160  # m
+    tf_min = 0.5   # mínimo absoluto en segundos
 
-    fases = [
-        (z_premove,  z_approach, "PREMOVE → APPROACH"),
-        (z_approach, z_pick,     "APPROACH → PICK"),
-    ]
+    for q0_deg, qf_deg in zip(joints_inicio_deg, joints_fin_deg):
+        dq = abs(math.radians(qf_deg - q0_deg))
+        if dq < 1e-6:
+            continue
+        tf_vel  = (15.0 / 8.0) * dq / vel_max_rad
+        tf_acel = math.sqrt((10.0 * math.sqrt(3.0) / 3.0) * dq / acel_max_rad)
+        tf_min  = max(tf_min, tf_vel, tf_acel)
 
-    resultados = []
-    for z_ini, z_fin, nombre in fases:
-        c = coeficientes_quintico(s0=z_ini, sf=z_fin, tf=tf_fase)
-        t_vec = np.arange(0, tf_fase + dt, dt)
-        pos, vel, acel = evaluar_quintico(c, t_vec)
-        resultados.append((t_vec, pos, vel, acel, nombre))
-
-    return resultados
+    return tf_min
 ```
 
 ---
 
-## 4c.4 Trayectoria Trapezoidal de Velocidad
-
-### Descripción
-
-El **perfil trapezoidal** divide el movimiento en tres fases:
-
-1. **Aceleración constante** $$a_{max}$$: de 0 a $$v_{max}$$
-2. **Velocidad constante** $$v_{max}$$: crucero
-3. **Deceleración constante** $$-a_{max}$$: de $$v_{max}$$ a 0
-
-```
- v ↑
-   │      ┌───────┐
-v_max     │       │
-   │   ╱  │       │  ╲
-   │ ╱    │       │    ╲
-   └──────────────────── t
-     t_a   t_c    t_d
-```
-
-### Implementación
+## 4c.4 Parámetros de Velocidad
 
 ```python
-def trayectoria_trapezoidal(s0, sf, v_max, a_max, dt=0.01):
-    """
-    Perfil trapezoidal de velocidad.
-
-    Args:
-        s0, sf:  posición inicial y final (m)
-        v_max:   velocidad máxima (m/s)
-        a_max:   aceleración máxima (m/s²)
-        dt:      paso de tiempo (s)
-
-    Returns:
-        t_vec, pos, vel, acel
-    """
-    d = abs(sf - s0)
-    sign = np.sign(sf - s0)
-
-    # Tiempo de aceleración/deceleración
-    t_a = v_max / a_max
-
-    # Distancia durante aceleración
-    d_a = 0.5 * a_max * t_a**2
-
-    if 2 * d_a > d:
-        # Perfil triangular (sin fase de crucero)
-        t_a = np.sqrt(d / a_max)
-        t_c = 0
-        v_max = a_max * t_a
-    else:
-        t_c = (d - 2 * d_a) / v_max
-
-    t_total = 2 * t_a + t_c
-    t_vec = np.arange(0, t_total + dt, dt)
-    pos = np.zeros_like(t_vec)
-    vel = np.zeros_like(t_vec)
-    acel = np.zeros_like(t_vec)
-
-    for k, t in enumerate(t_vec):
-        if t <= t_a:                        # Aceleración
-            a = sign * a_max
-            v = sign * a_max * t
-            s = s0 + 0.5 * sign * a_max * t**2
-        elif t <= t_a + t_c:               # Crucero
-            a = 0
-            v = sign * v_max
-            s = s0 + sign * (d_a + v_max * (t - t_a))
-        else:                              # Deceleración
-            dt_ = t - t_a - t_c
-            a = -sign * a_max
-            v = sign * (v_max - a_max * dt_)
-            s = s0 + sign * (d - 0.5 * a_max * (t_total - t)**2)
-        pos[k], vel[k], acel[k] = s, v, a
-
-    return t_vec, pos, vel, acel
+# robot_controller.py
+VEL_J       = 1.0    # rad/s — velocidad normal (tránsitos)
+ACEL_J      = 0.3    # rad/s² — aceleración normal
+VEL_LENTO   = 0.25   # rad/s — velocidad lenta (cerca del cubo)
+ACEL_LENTO  = 0.2    # rad/s² — aceleración lenta
 ```
+
+| Movimiento | Velocidad | Aceleración | Modo |
+|---|:---:|:---:|---|
+| HOME → PREMOVE | 1.0 rad/s | 0.3 rad/s² | Quíntico |
+| PREMOVE → APPROACH | 0.25 rad/s | 0.2 rad/s² | Normal lento |
+| APPROACH → PICK | 0.25 rad/s | 0.2 rad/s² | Normal lento |
+| PICK → PLACE | 0.25 rad/s | 0.2 rad/s² | Quíntico |
 
 ---
 
-## 4c.5 Comparativa: Quíntico vs. Trapezoidal
-
-Aplicados al mismo movimiento: APPROACH → PICK (Z: 210 mm → 160 mm).
-
-```python
-# Quíntico
-tf = 2.0
-c = coeficientes_quintico(s0=0.210, sf=0.160, tf=tf)
-t_q = np.arange(0, tf + 0.01, 0.01)
-pos_q, vel_q, acel_q = evaluar_quintico(c, t_q)
-
-# Trapezoidal
-t_t, pos_t, vel_t, acel_t = trayectoria_trapezoidal(
-    s0=0.210, sf=0.160, v_max=0.05, a_max=0.08
-)
-
-# Comparativa
-fig, axes = plt.subplots(1, 3, figsize=(14, 4))
-fig.suptitle('Quíntico vs Trapezoidal — APPROACH → PICK (Z)', fontsize=12)
-
-axes[0].plot(t_q, pos_q*1000, 'b-', label='Quíntico', lw=2)
-axes[0].plot(t_t, pos_t*1000, 'r--', label='Trapezoidal', lw=2)
-axes[0].set_title('Posición Z (mm)')
-axes[0].legend(); axes[0].grid(True, alpha=0.3)
-
-axes[1].plot(t_q, vel_q*1000, 'b-', label='Quíntico', lw=2)
-axes[1].plot(t_t, vel_t*1000, 'r--', label='Trapezoidal', lw=2)
-axes[1].set_title('Velocidad Z (mm/s)')
-axes[1].legend(); axes[1].grid(True, alpha=0.3)
-
-axes[2].plot(t_q, acel_q*1000, 'b-', label='Quíntico', lw=2)
-axes[2].plot(t_t, acel_t*1000, 'r--', label='Trapezoidal', lw=2)
-axes[2].set_title('Aceleración Z (mm/s²)')
-axes[2].legend(); axes[2].grid(True, alpha=0.3)
-
-plt.tight_layout()
-plt.savefig('assets/img/comparativa_trayectorias.png', dpi=150)
-```
-
-![Comparativa quíntico vs trapezoidal](../../assets/img/comparativa_trayectorias.png)
-
-### Tabla de Comparación Directa
-
-| Criterio | Quíntico | Trapezoidal |
-|---|:---:|:---:|
-| **Suavidad** | ✅ Continua hasta $$\ddot{s}$$ | 🔶 Discontinuidades en aceleración |
-| **Aceleración máxima** | 🔶 Mayor (pico en curva) | ✅ Constante y controlada |
-| **Tiempo de ciclo** | 🔶 Mayor (tf fijo) | ✅ Menor (llega a v_max antes) |
-| **Jerk (∂³s/∂t³)** | ✅ Continuo | ❌ Impulsos en t_a, t_d |
-| **Parámetros** | tf fijo | v_max, a_max libres |
-| **Aplicación ideal** | Movimientos de precisión | Movimientos rápidos de transporte |
-
-> **Uso en el proyecto:** Se emplean **polinomios quínticos** para las fases PREMOVE→APPROACH y APPROACH→PICK por su mayor suavidad, mientras que el perfil trapezoidal se usa para movimientos rápidos de transporte entre zonas de clasificación.
-
----
-
-[← Levenberg-Marquardt](../04b-levenberg-marquardt) &nbsp;&nbsp; [Implementación Industrial →](../../05-implementacion-industrial){: .btn .btn-outline }
+[← Levenberg-Marquardt](../04b-levenberg-marquardt) &nbsp;&nbsp; [Implementación →](../../05-implementacion-industrial){: .btn .btn-outline }

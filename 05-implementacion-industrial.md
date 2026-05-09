@@ -2,15 +2,15 @@
 layout: default
 title: Implementación Industrial
 nav_order: 6
-description: "Sistema completo de pick and place: flujo, modos GO y SORT, comunicación TCP y gripper"
+description: "Flujo real de main.py — modos GO, SORT, SORT-BUCLE y comunicación TCP"
 permalink: /05-implementacion-industrial/
 ---
 
 # 5. Implementación Industrial
 {: .no_toc }
 
-Sistema completo de pick and place: arquitectura, flujos de operación, comunicación con el robot y detección de singularidades.
-{: .fs-6 .fw-300 }
+Sistema completo: modos GO, SORT y SORT-BUCLE con código real de `main.py` y `robot_controller.py`.
+{: .fs-5 .fw-300 }
 
 ## Tabla de Contenidos
 {: .no_toc .text-delta }
@@ -20,273 +20,211 @@ Sistema completo de pick and place: arquitectura, flujos de operación, comunica
 
 ---
 
-## 5.1 Descripción del Sistema
+## 5.1 Interfaz de Usuario — Menú de Comandos
 
-El sistema de pick and place integra todos los módulos en un flujo de producción autónomo:
-
-- **Visión:** Detecta y localiza cubos de colores en tiempo real (30 fps)
-- **Calibración:** Calcula la homografía cámara-robot con ArUco al inicio de sesión
-- **Planificación:** Calcula IK analítica + trayectorias quínticas para cada movimiento
-- **Ejecución:** Envía comandos TCP al UR3 y controla el gripper OnRobot
-- **Supervisión:** Valida el workspace, detecta singularidades y gestiona el modo SORT
-
----
-
-## 5.2 Flujo de Operación Completo
+El sistema se opera desde una terminal con los siguientes comandos (definidos en `main.py`):
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    ARRANQUE DEL SISTEMA                  │
-│  1. Inicializar cámara (Logitech C920)                  │
-│  2. Conectar socket TCP → UR3:30002                     │
-│  3. Conectar HTTP → OnRobot Gripper                     │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│              CALIBRACIÓN ArUco                           │
-│  4. Detectar 4 marcadores en esquinas del área         │
-│  5. Calcular homografía pixel → robot (RANSAC)         │
-│  6. Guardar en caché JSON para reusar                  │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│              DETECCIÓN DE CUBOS                          │
-│  7. Capturar frame → convertir a HSV                   │
-│  8. Segmentar por color (rojo/verde/azul)               │
-│  9. Filtrar por área, solidez, aspecto, vértices        │
-│ 10. Calcular centroide → homografía → coords robot      │
-└────────────────────────┬────────────────────────────────┘
-                         │
-                         ▼
-┌─────────────────────────────────────────────────────────┐
-│           PLANIFICACIÓN Y EJECUCIÓN                      │
-│ 11. Seleccionar cubo (modo GO: usuario; SORT: auto)    │
-│ 12. Calcular IK analítica para posición del cubo        │
-│ 13. Validar workspace (X: -500..500, Y: -600..100 mm)  │
-│ 14. Detectar zona barras → waypoint de rodeo si aplica  │
-│ 15. PICK en 3 fases (PREMOVE → APPROACH → PICK)         │
-│ 16. GRIP (OnRobot HTTP)                                 │
-│ 17. PLACE → zona de color destino                       │
-│ 18. RELEASE (OnRobot HTTP)                              │
-│ 19. Retorno a HOME                                      │
-└─────────────────────────────────────────────────────────┘
+╔══════════════════════════════════════════════════════════╗
+║         UR3 PICK & PLACE — SISTEMA DE VISIÓN             ║
+║         Cámara C920  ·  OnRobot Soft Gripper             ║
+╚══════════════════════════════════════════════════════════╝
+
+  Comandos disponibles:
+  scan         → Ver cubos detectados ahora por la cámara
+  go           → Scan + seleccionar cubo + mover robot
+  sort         → Ordenar TODOS los cubos a su zona (una vez)
+  sortb        → Sort en BUCLE continuo (Ctrl+C para salir)
+  home         → Mover robot a posición HOME
+  brida open   → Abrir brida manualmente
+  brida close  → Cerrar brida manualmente
+  config       → Ver / editar parámetros del sistema
+  salir        → Cerrar programa
 ```
 
 ---
 
-## 5.3 Modo GO y Modo SORT
-
-### Modo GO — Clasificar un cubo
-
-El operador selecciona un cubo detectado (por color o posición) y el sistema ejecuta un solo ciclo de pick and place:
+## 5.2 Flujo de Arranque
 
 ```python
-def modo_go(color_objetivo):
-    """Clasifica el cubo del color especificado."""
-    cubo = camera_detector.obtener_cubo(color_objetivo)
+# main.py — Flujo de arranque real
+def main():
+    # 1. Abrir cámara (instancia compartida)
+    cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+    time.sleep(1.2)   # calentar sensor
+
+    # 2. Calibrar homografía ArUco (usa caché si existe)
+    H = calibrar_al_inicio(cap, forzar="--recalib" in sys.argv)
+    set_homografia(H)   # inyectar al detector
+
+    # 3. Iniciar detector de cubos en hilo de fondo
+    detector = CubeDetector(camera_index=1, show_window=True,
+                             cap_externo=cap)  # comparte el mismo cap
+    detector.start()
+    time.sleep(0.8)
+
+    # 4. Conectar con el robot
+    robot = RobotController(modo_sim=False)
+    robot.inicializar_brida()   # GET /api/dc/sg/initialize/0/1
+```
+
+---
+
+## 5.3 Modo GO — Flujo de Pick Individual
+
+```python
+# main.py — flujo_pick() real
+def flujo_pick(detector, robot):
+    # Captura puntual del estado de la cámara
+    cubos = detector.get_cubos()
+    mostrar_cubos(cubos)
+
+    cubo = seleccionar_cubo(cubos)   # operador elige por número
     if cubo is None:
-        print(f"No se detectó cubo {color_objetivo}")
         return
 
-    zona_destino = zone_manager.zona_de_color(color_objetivo)
-    robot_controller.pick_and_place(cubo.posicion, zona_destino)
-    print(f"Cubo {color_objetivo} clasificado en {zona_destino}")
+    # Calcular IK para las 3 fases
+    x_m, y_m, _ = mm_a_metros(cubo["x_mm"], cubo["y_mm"])
+    ik_pm = calcular_ik(x_m, y_m, CONFIG["z_premove_mm"]/1000)
+    ik_ap = calcular_ik(x_m, y_m, CONFIG["z_approach_mm"]/1000)
+    ik_pk = calcular_ik(x_m, y_m, CONFIG["z_pick_mm"]/1000)
+
+    # Confirmación del operador antes de mover
+    if not pedir_confirmacion(cubo):
+        return
+
+    # Ejecutar secuencia
+    robot.ejecutar_pick(
+        joints_premove_deg  = ik_pm["joints_deg"],
+        joints_approach_deg = ik_ap["joints_deg"],
+        joints_prepick_deg  = ik_pk["joints_deg"],
+        x_mm = cubo["x_mm"],
+        y_mm = cubo["y_mm"],
+    )
 ```
 
-### Modo SORT — Clasificación autónoma completa
+---
 
-El sistema detecta **todos los cubos mal colocados** y los clasifica sin intervención humana:
+## 5.4 Modo SORT — Clasificación Autónoma
 
 ```python
-def modo_sort():
-    """
-    Clasifica todos los cubos que están fuera de su zona correcta.
-    Ejecuta sin intervención humana hasta que todos estén clasificados.
-    """
+# main.py — _nucleo_sort() (bucle principal de clasificación)
+def _nucleo_sort(detector, robot, a_mover):
+    slots_usados = {"ROJO": [], "AZUL": [], "VERDE": []}
+
+    robot.ir_a_home()
+    robot.abrir_brida()
+
+    for i, cb in enumerate(a_mover):
+        # Obtener slot destino (libre según cámara + registro interno)
+        destino = destino_robusto(cb["color"], detector.get_cubos())
+        if destino is None:
+            warn(f"Zona {cb['color']} llena — saltando.")
+            continue
+
+        dx_mm, dy_mm = destino
+
+        # Calcular IK para las 6 poses (3 pick + 3 place)
+        ik_pm_pick  = calcular_ik(x_pick_m,  y_pick_m,  z_pm)
+        ik_ap_pick  = calcular_ik(x_pick_m,  y_pick_m,  z_ap)
+        ik_pk       = calcular_ik(x_pick_m,  y_pick_m,  z_pk)
+        ik_pm_place = calcular_ik(x_place_m, y_place_m, z_pm)
+        ik_ap_place = calcular_ik(x_place_m, y_place_m, z_ap)
+        ik_pl       = calcular_ik(x_place_m, y_place_m, z_pk)
+
+        # PICK (con waypoint de rodeo si aplica)
+        if necesita_rodeo(cb["x_mm"], cb["y_mm"]):
+            robot._move_j(WAYPOINT_RODEO_J, "RODEO → PICK")
+        robot._move_j(ik_pm_pick["joints_deg"], "PREMOVE", usar_quintico=True)
+        robot._move_j(ik_ap_pick["joints_deg"], "APPROACH", lento=True)
+        robot._move_j(ik_pk["joints_deg"],      "PICK",     lento=True)
+        robot.cerrar_brida()
+        robot._move_j(ik_ap_pick["joints_deg"], "RETRACT",  lento=True)
+
+        # PLACE (directo, sin HOME intermedio)
+        robot._move_j(ik_pm_place["joints_deg"], "PREMOVE PLACE", usar_quintico=True)
+        robot._move_j(ik_ap_place["joints_deg"], "APPROACH PLACE", lento=True)
+        robot._move_j(ik_pl["joints_deg"],        "PLACE",         lento=True)
+        robot.abrir_brida()
+        robot._move_j(ik_ap_place["joints_deg"], "RETRACT PLACE", lento=True)
+
+        slots_usados[cb["color"].upper()].append((dx_mm, dy_mm))
+
+    robot.ir_a_home()
+```
+
+> **Optimización clave:** En el modo SORT, el robot va **directo de PICK a PLACE** sin pasar por HOME, reduciendo el tiempo de ciclo total.
+
+---
+
+## 5.5 Modo SORT-BUCLE
+
+```python
+# main.py — flujo_sort_bucle()
+def flujo_sort_bucle(detector, robot):
+    """Sort continuo — ordena, espera a que el operador desordene, y vuelve."""
     while True:
-        cubos_mal_colocados = zone_manager.detectar_mal_colocados()
+        cubos   = detector.get_cubos()
+        a_mover = [cb for cb in cubos if not zona_ya_en_destino(cb)]
 
-        if not cubos_mal_colocados:
-            print("✓ Todos los cubos están en su zona correcta.")
-            break
-
-        for cubo in cubos_mal_colocados:
-            zona_correcta = zone_manager.zona_de_color(cubo.color)
-            robot_controller.pick_and_place(cubo.posicion, zona_correcta)
-            print(f"→ Cubo {cubo.color} en {cubo.zona_actual} → {zona_correcta}")
-
-        # Pausa breve para actualizar visión
-        time.sleep(0.5)
+        if not a_mover:
+            # Esperar cambios (polling cada 1.5 s)
+            while True:
+                time.sleep(1.5)
+                cubos   = detector.get_cubos()
+                a_mover = [cb for cb in cubos if not zona_ya_en_destino(cb)]
+                if a_mover:
+                    break   # detectó cubos fuera de lugar
+        else:
+            _nucleo_sort(detector, robot, a_mover)
 ```
 
 ---
 
-## 5.4 Comunicación TCP con el UR3 — Puerto 30002
-
-El UR3 acepta comandos **URScript** a través de una conexión TCP directa al puerto 30002. No se requiere ningún software adicional.
-
-### Formato del Comando `movej`
-
-```
-movej([q1, q2, q3, q4, q5, q6], a=1.4, v=1.05, t=0, r=0)
-```
-
-| Parámetro | Descripción | Valor típico |
-|---|---|---|
-| `[q1..q6]` | Vector articular en radianes | Calculado por IK |
-| `a` | Aceleración articular (rad/s²) | 1.4 (lento) – 8.0 (rápido) |
-| `v` | Velocidad articular (rad/s) | 1.05 (lento) – 3.14 (rápido) |
-| `t` | Tiempo de ejecución (0 = ignorar) | 0 |
-| `r` | Radio de blend (m) | 0 (sin blend) |
-
-### Implementación
+## 5.6 Comunicación TCP con el UR3
 
 ```python
-import socket
+# robot_controller.py — Envío de comandos URScript
 
-class RobotController:
-    def __init__(self, robot_ip="192.168.1.10", port=30002):
-        self.robot_ip = robot_ip
-        self.port = port
-        self.sock = None
+ROBOT_IP   = "192.168.1.74"
+ROBOT_PORT = 30002
 
-    def conectar(self):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.connect((self.robot_ip, self.port))
-        self.sock.settimeout(5.0)
-        print(f"✓ Conectado al UR3 en {self.robot_ip}:{self.port}")
+def _build_movej(joints_deg, vel=1.0, acel=0.3, tf=0.0):
+    """Construye el comando movej para enviar al puerto 30002."""
+    rad = [math.radians(q) for q in joints_deg]
+    joints_str = ", ".join(f"{r:.6f}" for r in rad)
+    if tf > 0:
+        # t=tf fuerza la duración del movimiento (planificación quíntica)
+        return f"movej([{joints_str}], a={acel}, v={vel}, t={tf:.4f})\n"
+    return f"movej([{joints_str}], a={acel}, v={vel})\n"
 
-    def mover_articular(self, q, aceleracion=1.4, velocidad=1.05):
-        """Envía comando movej con el vector articular dado."""
-        q_str = ", ".join(f"{angle:.6f}" for angle in q)
-        cmd = f"movej([{q_str}], a={aceleracion}, v={velocidad})\n"
-        self.sock.send(cmd.encode("utf-8"))
-
-    def ir_home(self):
-        """Envía el robot a la posición HOME."""
-        q_home = [0, -1.5708, -1.5708, 0, 1.5708, 0]  # radianes
-        self.mover_articular(q_home, aceleracion=2.0, velocidad=1.5)
+def _enviar_script(script, esperar=0.5):
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.settimeout(10)
+        s.connect((ROBOT_IP, ROBOT_PORT))
+        s.sendall(script.encode("utf-8"))
+    time.sleep(esperar)
 ```
 
 ---
 
-## 5.5 Control del Gripper OnRobot vía HTTP REST
+## 5.7 Waypoint de Rodeo
 
 ```python
-import requests
-import time
+# robot_controller.py — Zona de barras laterales
+BARRA_Y_FIN   = -280.0   # mm
+BARRA_X_LIBRE =  350.0   # mm
+WAYPOINT_RODEO_J = [0.0, -110.0, -90.0, -70.0, 90.0, 0.0]  # grados
 
-class OnRobotGripper:
-    def __init__(self, ip="192.168.1.1"):
-        self.base_url = f"http://{ip}/api/v1/gripper"
-
-    def grip(self, fuerza=50):
-        """Activa el gripper con la fuerza especificada (%)."""
-        payload = {"force": fuerza}
-        r = requests.post(f"{self.base_url}/grip", json=payload, timeout=2)
-        time.sleep(0.3)  # Esperar que el gripper cierre
-        return r.status_code == 200
-
-    def release(self):
-        """Libera el gripper."""
-        r = requests.post(f"{self.base_url}/release", timeout=2)
-        time.sleep(0.3)  # Esperar que el gripper abra
-        return r.status_code == 200
-```
-
----
-
-## 5.6 Waypoint de Rodeo para Zona de Barras
-
-Cuando el cubo se encuentra en la **zona de barras laterales**, el robot debe rodear las barras físicas antes de descender. Se detecta esta condición y se inserta un waypoint intermedio:
-
-**Condición de rodeo:**
-$$Y < -280\,\text{mm} \quad \text{OR} \quad X > 350\,\text{mm}$$
-
-**Waypoint de rodeo:** $$\mathbf{q}_{rodeo} = [0°, -110°, -90°, -70°, 90°, 0°]$$
-
-```python
 def necesita_rodeo(x_mm, y_mm):
-    """Determina si el cubo está en la zona de barras laterales."""
-    return y_mm < -280 or x_mm > 350
-
-def pick_con_rodeo(x_cubo, y_cubo, z_cubo):
-    """
-    Ejecuta el pick pasando por el waypoint de rodeo si es necesario.
-    """
-    if necesita_rodeo(x_cubo, y_cubo):
-        print("→ Zona de barras detectada. Insertando waypoint de rodeo.")
-        q_rodeo = np.deg2rad([0, -110, -90, -70, 90, 0])
-        robot.mover_articular(q_rodeo, aceleracion=1.0, velocidad=0.8)
-        time.sleep(1.0)  # Esperar que llegue
-
-    # Continuar con las 3 fases normales de pick
-    ejecutar_fases_pick(x_cubo, y_cubo, z_cubo)
+    """True si el cubo está en la zona de barras laterales."""
+    return y_mm < BARRA_Y_FIN or abs(x_mm) > BARRA_X_LIBRE
 ```
 
----
-
-## 5.7 Validación del Workspace
-
-Antes de ejecutar cualquier movimiento, se validan los límites del área de trabajo:
-
-```python
-WORKSPACE = {
-    "x_min": -500, "x_max": 500,   # mm
-    "y_min": -600, "y_max": 100,   # mm
-    "z_min":  100, "z_max": 350,   # mm
-}
-
-def validar_workspace(x, y, z):
-    """Verifica que la posición esté dentro del workspace seguro."""
-    valido = (WORKSPACE["x_min"] <= x <= WORKSPACE["x_max"] and
-              WORKSPACE["y_min"] <= y <= WORKSPACE["y_max"] and
-              WORKSPACE["z_min"] <= z <= WORKSPACE["z_max"])
-    if not valido:
-        raise ValueError(
-            f"Posición ({x:.0f}, {y:.0f}, {z:.0f}) mm "
-            f"fuera del workspace seguro."
-        )
-    return True
-```
-
----
-
-## 5.8 Diagrama de Flujo Completo
-
-```
-INICIO
-  │
-  ├── Inicializar hardware (cámara, TCP, gripper)
-  │
-  ├── Calibración ArUco (si no hay caché)
-  │       │
-  │       └── Detectar 4 marcadores → calcular homografía → guardar JSON
-  │
-  ├── Menú principal
-  │       │
-  │       ├── [1] Modo GO
-  │       │       │
-  │       │       └── Seleccionar color → Detectar cubo →
-  │       │           Calcular IK → Validar workspace →
-  │       │           ¿Zona barras? → [Sí] Waypoint rodeo
-  │       │           PREMOVE → APPROACH → PICK → GRIP →
-  │       │           PLACE → RELEASE → HOME
-  │       │
-  │       ├── [2] Modo SORT
-  │       │       │
-  │       │       └── Detectar todos los mal colocados →
-  │       │           Para cada cubo: ejecutar ciclo GO →
-  │       │           Repetir hasta que todos estén correctos
-  │       │
-  │       ├── [3] Recalibrar homografía
-  │       │
-  │       └── [0] Salir → HOME → Desconectar
-
-FIN
-```
+La condición de rodeo es: $$Y < -280\,\text{mm}$$ O $$|X| > 350\,\text{mm}$$
 
 ---
 
