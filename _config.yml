@@ -1,5 +1,5 @@
 title: CoBot Clasificador de Colores
-description: "UR3 · Visión Artificial · Cinemática Inversa · IBERO 2025"
+description: "UR3 · Visión Artificial · Cinemática Inversa · IBERO 2026"
 theme: just-the-docs
 
 # Color scheme — usamos el default (claro) + override en custom CSS
@@ -24,7 +24,7 @@ search:
 footer_content: >
   <strong>Elias Santiago Jiménez Hernández</strong> &mdash;
   Ingeniería Mecatrónica, 8° semestre &mdash;
-  <em>Control Avanzado</em> &mdash; IBERO Ciudad de México · 2025
+  <em>Control Avanzado</em> &mdash; IBERO Ciudad de México · 2026
 
 # Aux links
 aux_links:

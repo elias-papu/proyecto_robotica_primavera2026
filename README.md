@@ -34,7 +34,7 @@ Hay dos modos:
 - **Materia:** Control Avanzado
 - **Profesores:** Dr. Andrés Guillermo Molano Jiménez · Dr. Julio Antonio Caballero Mora
 - **Carrera:** Ingeniería Mecatrónica, 8° semestre
-- **Universidad:** IBERO Ciudad de México · Primavera 2025
+- **Universidad:** IBERO Ciudad de México · Primavera 2026
 
 ---
 

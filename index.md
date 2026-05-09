@@ -33,7 +33,7 @@ permalink: /
 | **Carrera** | Ingeniería Mecatrónica · 8° Semestre |
 | **Materia** | Control Avanzado |
 | **Profesores** | Dr. Andrés Guillermo Molano Jiménez · Dr. Julio Antonio Caballero Mora |
-| **Año** | Primavera 2025 |
+| **Año** | Primavera 2026 |
 | **Institución** | Universidad Iberoamericana (IBERO) · Ciudad de México |
 | **Robot** | Universal Robots UR3 — 6 GDL |
 | **Reconocimiento** | 🥉 3er Lugar · Día de las Ingenierías 2026 |
