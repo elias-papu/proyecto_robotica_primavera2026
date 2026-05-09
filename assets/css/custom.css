@@ -1,60 +1,75 @@
---- --- @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
+/* ── Variables IBERO ─────────────────────────────────────── */
 :root {
   --ibero-rojo: #C8102E;
   --ibero-rojo-dark: #a00d24;
   --ibero-rojo-light: #f9e0e4;
   --ibero-gris: #f7f7f7;
   --ibero-gris-mid: #e4e4e4;
-  --ibero-texto: #1a1a1a;
-  --ibero-texto-soft: #555;
 }
 
+/* ── Sidebar ─────────────────────────────────────────────── */
 .side-bar {
   background-color: #1a1a1a !important;
-  border-right: 3px solid var(--ibero-rojo) !important;
+  border-right: 3px solid #C8102E !important;
+  width: 264px !important;
 }
 
 .site-title {
-  color: #fff !important;
-  font-family: 'Inter', sans-serif;
-  font-weight: 700;
-  font-size: 1.05rem !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
   border-bottom: 1px solid #333;
 }
 
 .nav-list .nav-list-item .nav-list-link {
-  color: #bbb !important;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.875rem;
+  color: #bbbbbb !important;
 }
 
 .nav-list .nav-list-item .nav-list-link:hover {
-  color: #fff !important;
+  color: #ffffff !important;
   background-color: #2a2a2a !important;
 }
 
 .nav-list .nav-list-item .nav-list-link.active {
-  color: #fff !important;
-  background-color: var(--ibero-rojo) !important;
+  color: #ffffff !important;
+  background-color: #C8102E !important;
   border-radius: 4px;
   font-weight: 600;
 }
 
-.nav-list-expander {
-  color: #888 !important;
+.nav-list-expander svg {
+  color: #888;
 }
 
+/* ── Layout — más ancho ──────────────────────────────────── */
+.main {
+  margin-left: 264px !important;
+}
+
+.main-content-wrap {
+  max-width: 1200px !important;
+  padding-left: 2rem !important;
+  padding-right: 2rem !important;
+}
+
+.main-header {
+  background-color: #C8102E !important;
+  border-bottom: none !important;
+}
+
+/* ── Tipografía ──────────────────────────────────────────── */
+body,
 .main-content {
   font-family: 'Inter', sans-serif !important;
-  color: var(--ibero-texto) !important;
+  color: #1a1a1a !important;
   line-height: 1.75;
 }
 
 .main-content h1 {
-  color: var(--ibero-rojo) !important;
+  color: #C8102E !important;
   font-weight: 700;
-  border-bottom: 3px solid var(--ibero-rojo);
+  border-bottom: 3px solid #C8102E;
   padding-bottom: 0.4rem;
   margin-bottom: 1.5rem;
 }
@@ -62,15 +77,9 @@
 .main-content h2 {
   color: #1a1a1a !important;
   font-weight: 600;
-  border-bottom: 1px solid var(--ibero-gris-mid);
+  border-bottom: 1px solid #e4e4e4;
   padding-bottom: 0.25rem;
   margin-top: 2.2rem;
-}
-
-.main-content h3 {
-  color: var(--ibero-rojo-dark) !important;
-  font-weight: 600;
-  margin-top: 1.5rem;
 }
 
 .main-content h2::before {
@@ -78,14 +87,21 @@
   display: inline-block;
   width: 4px;
   height: 1em;
-  background: var(--ibero-rojo);
+  background: #C8102E;
   margin-right: 0.5rem;
   vertical-align: middle;
   border-radius: 2px;
 }
 
+.main-content h3 {
+  color: #a00d24 !important;
+  font-weight: 600;
+  margin-top: 1.5rem;
+}
+
+/* ── Links ───────────────────────────────────────────────── */
 .main-content a {
-  color: var(--ibero-rojo) !important;
+  color: #C8102E !important;
   text-decoration: none;
 }
 
@@ -93,44 +109,52 @@
   text-decoration: underline;
 }
 
+/* ── Botones ─────────────────────────────────────────────── */
 .btn-primary {
-  background-color: var(--ibero-rojo) !important;
-  border-color: var(--ibero-rojo) !important;
+  background-color: #C8102E !important;
+  border-color: #C8102E !important;
   color: #fff !important;
   font-weight: 600;
 }
 
 .btn-primary:hover {
-  background-color: var(--ibero-rojo-dark) !important;
+  background-color: #a00d24 !important;
 }
 
 .btn-outline {
-  border-color: var(--ibero-rojo) !important;
-  color: var(--ibero-rojo) !important;
+  border-color: #C8102E !important;
+  color: #C8102E !important;
 }
 
 .btn-outline:hover {
-  background-color: var(--ibero-rojo) !important;
+  background-color: #C8102E !important;
   color: #fff !important;
 }
 
-.main-content code {
+/* ── Código inline ───────────────────────────────────────── */
+.main-content p code,
+.main-content li code,
+.main-content td code {
   background-color: #fdf0f2 !important;
-  color: var(--ibero-rojo-dark) !important;
+  color: #a00d24 !important;
   font-family: 'JetBrains Mono', monospace !important;
   font-size: 0.85em;
-  padding: 0.12em 0.35em;
+  padding: 0.12em 0.4em;
   border-radius: 3px;
   border: 1px solid #f0d0d5;
 }
 
+/* ── Bloques de código — MÁS ANCHOS ─────────────────────── */
 .main-content div.highlighter-rouge,
-.main-content figure.highlight {
+.main-content figure.highlight,
+.main-content pre {
   background: #1e1e2e !important;
-  border-left: 4px solid var(--ibero-rojo) !important;
+  border-left: 4px solid #C8102E !important;
   border-radius: 0 6px 6px 0;
   margin: 1.5rem 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  max-width: 100% !important;
+  overflow-x: auto;
 }
 
 .main-content div.highlighter-rouge code,
@@ -140,37 +164,30 @@
   color: #cdd6f4 !important;
   border: none !important;
   font-family: 'JetBrains Mono', monospace !important;
-  font-size: 0.83em;
-  line-height: 1.6;
+  font-size: 0.84em;
+  line-height: 1.65;
+  white-space: pre;
 }
 
-.main-content .lineno {
-  color: #45475a !important;
-  border-right: 1px solid #313244;
-  padding-right: 0.75rem;
-  margin-right: 0.75rem;
-  user-select: none;
-}
-
+/* ── Tablas ──────────────────────────────────────────────── */
 .main-content table {
   width: 100%;
   border-collapse: collapse;
   font-size: 0.9rem;
   margin: 1.5rem 0;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   border-radius: 6px;
   overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
 .main-content thead tr {
-  background-color: var(--ibero-rojo) !important;
-  color: #fff !important;
+  background-color: #C8102E !important;
 }
 
 .main-content thead th {
+  color: #ffffff !important;
   padding: 0.7rem 1rem;
   font-weight: 600;
-  color: #fff !important;
   border: none;
 }
 
@@ -179,27 +196,31 @@
 }
 
 .main-content tbody tr:hover {
-  background-color: var(--ibero-rojo-light);
+  background-color: #f9e0e4;
 }
 
 .main-content td {
   padding: 0.6rem 1rem;
-  border-bottom: 1px solid var(--ibero-gris-mid);
+  border-bottom: 1px solid #e4e4e4;
+  color: #1a1a1a;
 }
 
+/* ── Blockquotes ─────────────────────────────────────────── */
 .main-content blockquote {
-  border-left: 4px solid var(--ibero-rojo) !important;
+  border-left: 4px solid #C8102E !important;
   background-color: #fff8f9 !important;
   padding: 0.75rem 1.25rem;
   border-radius: 0 6px 6px 0;
   color: #444 !important;
   font-style: normal !important;
+  margin: 1rem 0;
 }
 
 .main-content blockquote p {
   margin: 0;
 }
 
+/* ── Imágenes ────────────────────────────────────────────── */
 .main-content img {
   border-radius: 8px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
@@ -208,15 +229,17 @@
   display: block;
 }
 
+/* ── Footer ──────────────────────────────────────────────── */
 .site-footer {
   background-color: #1a1a1a !important;
-  border-top: 3px solid var(--ibero-rojo) !important;
+  border-top: 3px solid #C8102E !important;
 }
 
 .site-footer-copyright {
   color: #999 !important;
 }
 
+/* ── Banner reconocimiento ───────────────────────────────── */
 .reconocimiento-banner {
   background: linear-gradient(135deg, #C8102E 0%, #8b0d20 100%);
   color: #fff;
@@ -243,40 +266,14 @@
   opacity: 0.9;
 }
 
+/* ── Placeholder imagen ──────────────────────────────────── */
 .img-placeholder {
-  border: 2px dashed var(--ibero-rojo);
+  border: 2px dashed #C8102E;
   border-radius: 8px;
   padding: 2rem;
   text-align: center;
   background: #fff8f9;
-  color: var(--ibero-texto-soft);
+  color: #555;
   margin: 1rem 0;
   font-style: italic;
-}
-
-.phase-card {
-  background: var(--ibero-gris);
-  border-left: 4px solid var(--ibero-rojo);
-  border-radius: 0 8px 8px 0;
-  padding: 1rem 1.25rem;
-  margin: 0.75rem 0;
-}
-
-.main-content-wrap {
-  max-width: 1100px !important;
-}
-
-.side-bar {
-  width: 248px !important;
-}
-
-@media (min-width: 1200px) {
-  .main {
-    margin-left: 248px !important;
-  }
-
-  .main-content {
-    max-width: 900px;
-    padding: 2rem 3rem !important;
-  }
 }
