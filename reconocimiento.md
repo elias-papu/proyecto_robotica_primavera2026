@@ -41,20 +41,13 @@ El diploma fue firmado por:
 
 ## El Diploma
 
-> La Universidad Iberoamericana Ciudad de México y el Departamento de Estudios en Ingeniería para la Innovación otorga el presente **RECONOCIMIENTO** al prototipo funcional **Robot babas**, por haber obtenido el tercer lugar en la evaluación de proyectos durante el "Día de las Ingenierías 2026".
->
-> Ciudad de México, 5 de mayo de 2026.
-
-> **Nota:** Puedes agregar aquí la foto del diploma en alta resolución colocando el archivo en `assets/img/diploma.jpeg` y usando la línea siguiente:
-
-```
-![Diploma 3er Lugar Día de las Ingenierías 2026](../assets/img/diploma.jpeg)
-```
-
-<div class="img-placeholder">
-  📄 <strong>Foto del diploma</strong><br>
-  Coloca el archivo en <code>assets/img/diploma.jpeg</code><br>
-  y descomenta la línea de imagen en este archivo.
+<div style="width:100%; height:700px; overflow:hidden;">
+  <iframe 
+    src="{{ '/assets/img/IBERO.pdf#toolbar=0' | relative_url }}"
+    width="100%" 
+    height="700px"
+    style="border:none; border-radius:8px;">
+  </iframe>
 </div>
 
 ---
