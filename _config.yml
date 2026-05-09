@@ -5,7 +5,7 @@ theme: just-the-docs
 color_scheme: dark
 
 url: ""
-baseurl: "/cobot-clasificador"
+baseurl: "/proyecto_robotica_primavera2026"
 
 # Navegación
 nav_sort: order

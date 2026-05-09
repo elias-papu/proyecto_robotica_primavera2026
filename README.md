@@ -7,7 +7,7 @@ Sitio de documentación académica del proyecto **CoBot Manipulador Clasificador
 | Campo | Detalle |
 |---|---|
 | **Estudiante** | Elias Santiago Jiménez Hernández |
-| **Materia** | Control Avanzado de Robots 2025 |
+| **Materia** | Control Avanzado 2026 |
 | **Institución** | Universidad Iberoamericana (IBERO) |
 | **Robot** | Universal Robots UR3 — 6 GDL |
 
@@ -62,4 +62,4 @@ open http://localhost:4000
 
 ## Licencia
 
-Documentación académica. Todos los derechos reservados © 2025 Elias Santiago Jiménez Hernández — IBERO.
+Documentación académica. Todos los derechos reservados © 2026 Elias Santiago Jiménez Hernández — IBERO.
