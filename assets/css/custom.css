@@ -12,48 +12,11 @@
 }
 
 /* ════════════════════════════════════════════════════════
-   LAYOUT
-   ════════════════════════════════════════════════════════ */
-@media (min-width: 50rem) {
-  .main {
-    max-width: 100% !important;
-  }
-}
-
-@media (min-width: 66.5rem) {
-
-  .site-nav,
-  .site-header,
-  .site-footer {
-    width: 100% !important;
-  }
-}
-
-.main {
-  margin-left: 280px !important;
-  background: #ffffff !important;
-}
-
-.main-content-wrap {
-  max-width: 100% !important;
-  padding: 2rem 4rem !important;
-  margin: 0 !important;
-}
-
-@media (max-width: 1100px) {
-  .main-content-wrap {
-    padding: 1.5rem 1.5rem !important;
-  }
-}
-
-/* ════════════════════════════════════════════════════════
    SIDEBAR
    ════════════════════════════════════════════════════════ */
 .side-bar {
   background: #111111 !important;
   border-right: 3px solid #C8102E !important;
-  width: 280px !important;
-  min-width: 280px !important;
 }
 
 .site-title {
@@ -62,7 +25,6 @@
   font-weight: 700 !important;
   font-size: 1rem !important;
   line-height: 1.4 !important;
-  padding: 1.2rem 1rem !important;
   border-bottom: 1px solid #2a2a2a !important;
   background: #111111 !important;
 }
@@ -71,7 +33,6 @@
   color: #aaaaaa !important;
   font-family: 'IBM Plex Sans', sans-serif !important;
   font-size: 0.875rem !important;
-  padding: 0.4rem 1rem !important;
 }
 
 .nav-list .nav-list-link:hover {
@@ -116,7 +77,6 @@
    ════════════════════════════════════════════════════════ */
 body {
   font-family: 'IBM Plex Sans', system-ui, sans-serif !important;
-  background: #ffffff !important;
   color: #1c1c1e !important;
 }
 
@@ -210,10 +170,9 @@ div.highlighter-rouge {
   margin: 1.5rem 0 !important;
   overflow-x: auto !important;
   box-shadow: none !important;
-  width: 100% !important;
 }
 
-/* Hijos directos del wrapper: sin estilos duplicados */
+/* Hijos directos: sin estilos duplicados */
 div.highlighter-rouge>.highlight,
 div.highlighter-rouge>figure.highlight {
   background: transparent !important;
@@ -222,10 +181,9 @@ div.highlighter-rouge>figure.highlight {
   margin: 0 !important;
   box-shadow: none !important;
   overflow: visible !important;
-  width: 100% !important;
 }
 
-/* Caso standalone (sin wrapper highlighter-rouge) */
+/* Caso standalone */
 figure.highlight,
 .highlight {
   background: #f6f8fa !important;
@@ -234,10 +192,9 @@ figure.highlight,
   margin: 1.5rem 0 !important;
   overflow-x: auto !important;
   box-shadow: none !important;
-  width: 100% !important;
 }
 
-/* El <pre> siempre sin borde ni fondo propio */
+/* <pre> siempre limpio */
 .highlight pre,
 div.highlighter-rouge pre,
 figure.highlight pre,
@@ -248,11 +205,10 @@ figure.highlight pre,
   overflow-x: auto !important;
   border: none !important;
   border-radius: 0 !important;
-  width: 100% !important;
   box-shadow: none !important;
 }
 
-/* El <code> siempre limpio */
+/* <code> siempre limpio */
 .highlight pre code,
 div.highlighter-rouge pre code,
 figure.highlight pre code,
@@ -322,10 +278,6 @@ figure.highlight pre code,
 .main-content table {
   width: 100% !important;
   border-collapse: collapse !important;
-  border-spacing: 0 !important;
-  border-radius: 0 !important;
-  overflow: visible !important;
-  box-shadow: none !important;
   margin: 1.5rem 0 !important;
   font-size: 0.92rem !important;
 }
@@ -377,7 +329,6 @@ figure.highlight pre code,
   color: #333 !important;
 }
 
-/* Código dentro de blockquote — sin borde extra */
 .main-content blockquote .highlight,
 .main-content blockquote div.highlighter-rouge,
 .main-content blockquote figure.highlight {

@@ -66,7 +66,7 @@ El UR3 se controla mediante comandos **URScript** (`movej`) enviados directament
 | **Inicialización** | `GET /api/dc/sg/initialize/0/1` |
 | **Tiempo de cierre** | ~2.0 s (incluye margen de seguridad) |
 
-```python
+{% highlight python %}
 # robot_controller.py — Control del gripper OnRobot vía HTTP REST
 import requests
 
@@ -86,7 +86,7 @@ def abrir_brida(self):
     if respuesta.status_code == 200:
         print("  [Brida] RELEASE ✓")
     time.sleep(2.0)  # Tiempo para soltar bien
-```
+{% endhighlight %}
 
 ### 1.2.3 Cámara — Logitech C920
 
@@ -101,7 +101,7 @@ La cámara de visión artificial es una **Logitech C920** montada en configuraci
 | **Buffer** | 1 frame (para evitar latencia) |
 | **Distorsión** | Radial barrel (K = −2×10⁻⁵, actualmente desactivada por la H) |
 
-```python
+{% highlight python %}
 # main.py — Apertura de cámara compartida entre calibración y detección
 import cv2
 
@@ -110,7 +110,7 @@ cap.set(cv2.CAP_PROP_FRAME_WIDTH,  1280)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT,  720)
 cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)       # ← buffer=1 para latencia mínima
 time.sleep(1.2)  # calentar sensor antes de capturar ArUcos
-```
+{% endhighlight %}
 
 ---
 
@@ -118,7 +118,7 @@ time.sleep(1.2)  # calentar sensor antes de capturar ArUcos
 
 El área de trabajo mide **920 mm × 420 mm** y está dividida en tres zonas de destino marcadas con papel de color sobre la superficie. Las zonas están definidas en `zone_manager.py`:
 
-```python
+{% highlight python %}
 # zone_manager.py — Definición real de zonas
 ZONAS = {
     "VERDE": {
@@ -146,7 +146,7 @@ ZONAS = {
         "slots_ny":   2,
     },
 }
-```
+{% endhighlight %}
 
 | Zona | Color | Centro X (mm) | Centro Y (mm) | Posición visual |
 |---|---|:---:|:---:|---|
