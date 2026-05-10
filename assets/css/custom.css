@@ -5,16 +5,44 @@
 
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
-/* ── Variables ────────────────────────────────────────── */
 :root {
   --ibero: #C8102E;
   --ibero-dark: #9b0b23;
   --ibero-pale: #fdf0f2;
 }
 
+/* ════════════════════════════════════════════════════════
+   LAYOUT
+   ════════════════════════════════════════════════════════ */
 @media (min-width: 50rem) {
   .main {
     max-width: 100% !important;
+  }
+}
+
+@media (min-width: 66.5rem) {
+
+  .site-nav,
+  .site-header,
+  .site-footer {
+    width: 100% !important;
+  }
+}
+
+.main {
+  margin-left: 280px !important;
+  background: #ffffff !important;
+}
+
+.main-content-wrap {
+  max-width: 100% !important;
+  padding: 2rem 4rem !important;
+  margin: 0 !important;
+}
+
+@media (max-width: 1100px) {
+  .main-content-wrap {
+    padding: 1.5rem 1.5rem !important;
   }
 }
 
@@ -67,41 +95,20 @@
   color: #666 !important;
 }
 
-.site-footer {
-  /*background: #111111 !important;*/
-  border-top: 2px solid #C8102E !important;
-}
-
-.site-footer-copyright {
-  color: #888 !important;
-}
-
 /* ════════════════════════════════════════════════════════
-   HEADER
+   HEADER Y FOOTER
    ════════════════════════════════════════════════════════ */
 .main-header {
   background: #ffffff !important;
   border-bottom: 2px solid #C8102E !important;
 }
 
-/* ════════════════════════════════════════════════════════
-   LAYOUT — MÁS ANCHO
-   ════════════════════════════════════════════════════════ */
-.main {
-  margin-left: 280px !important;
-  background: #ffffff !important;
+.site-footer {
+  border-top: 2px solid #C8102E !important;
 }
 
-.main-content-wrap {
-  max-width: 100% !important;
-  padding: 2rem 4rem !important;
-  margin: 0 !important;
-}
-
-@media (max-width: 1100px) {
-  .main-content-wrap {
-    padding: 1.5rem 1.5rem !important;
-  }
+.site-footer-copyright {
+  color: #888 !important;
 }
 
 /* ════════════════════════════════════════════════════════
@@ -179,6 +186,7 @@ body {
 .main-content p code,
 .main-content li code,
 .main-content td code,
+.main-content h2 code,
 .main-content h3 code {
   font-family: 'IBM Plex Mono', monospace !important;
   font-size: 0.85em !important;
@@ -191,18 +199,16 @@ body {
 }
 
 /* ════════════════════════════════════════════════════════
-   BLOQUES DE CÓDIGO
-   ════════════════════════════════════════════════════════ */
-/* ════════════════════════════════════════════════════════
-   BLOQUES DE CÓDIGO — fondo claro
+   BLOQUES DE CÓDIGO — PLANOS, SIN ÁRBOL, SIN BORDER-LEFT
    ════════════════════════════════════════════════════════ */
 .highlight,
 div.highlighter-rouge,
-figure.highlight {
+figure.highlight,
+.main-content pre {
   background: #f6f8fa !important;
   border: 1px solid #e1e4e8 !important;
-  border-left: 4px solid #C8102E !important;
-  border-radius: 0 8px 8px 0 !important;
+  border-left: 1px solid #e1e4e8 !important;
+  border-radius: 8px !important;
   margin: 1.5rem 0 !important;
   overflow: hidden !important;
   box-shadow: none !important;
@@ -211,7 +217,8 @@ figure.highlight {
 
 .highlight pre,
 div.highlighter-rouge pre,
-figure.highlight pre {
+figure.highlight pre,
+.main-content pre {
   background: #f6f8fa !important;
   margin: 0 !important;
   padding: 1.25rem 1.5rem !important;
@@ -219,11 +226,13 @@ figure.highlight pre {
   border: none !important;
   border-radius: 0 !important;
   width: 100% !important;
+  box-shadow: none !important;
 }
 
 .highlight pre code,
 div.highlighter-rouge pre code,
-figure.highlight pre code {
+figure.highlight pre code,
+.main-content pre code {
   font-family: 'IBM Plex Mono', monospace !important;
   font-size: 0.85rem !important;
   line-height: 1.7 !important;
@@ -232,50 +241,51 @@ figure.highlight pre code {
   border: none !important;
   padding: 0 !important;
   white-space: pre !important;
+  display: block !important;
 }
 
-/* Syntax colors — tema claro GitHub */
+/* Syntax highlighting — GitHub Light */
 .highlight .k,
 .highlight .kd,
 .highlight .kn,
 .highlight .kr {
-  color: #cf222e !important;
+  color: #d73a49 !important;
   font-weight: 600 !important;
 }
 
 .highlight .s,
 .highlight .s1,
 .highlight .s2 {
-  color: #0a3069 !important;
+  color: #032f62 !important;
 }
 
 .highlight .c,
 .highlight .c1,
 .highlight .cm {
-  color: #6e7781 !important;
+  color: #6a737d !important;
   font-style: italic !important;
 }
 
 .highlight .nb {
-  color: #953800 !important;
+  color: #005cc5 !important;
 }
 
 .highlight .nf,
 .highlight .nc {
-  color: #8250df !important;
+  color: #6f42c1 !important;
 }
 
 .highlight .mi,
 .highlight .mf {
-  color: #0550ae !important;
+  color: #005cc5 !important;
 }
 
 .highlight .o {
-  color: #cf222e !important;
+  color: #d73a49 !important;
 }
 
 .highlight .na {
-  color: #116329 !important;
+  color: #22863a !important;
 }
 
 .highlight .p {
@@ -343,6 +353,16 @@ figure.highlight pre code {
   color: #333 !important;
 }
 
+/* Código dentro de blockquote — sin borde extra */
+.main-content blockquote .highlight,
+.main-content blockquote div.highlighter-rouge,
+.main-content blockquote figure.highlight {
+  border: 1px solid #e1e4e8 !important;
+  border-left: 1px solid #e1e4e8 !important;
+  border-radius: 6px !important;
+  margin: 0.75rem 0 0 0 !important;
+}
+
 /* ════════════════════════════════════════════════════════
    BOTONES
    ════════════════════════════════════════════════════════ */
@@ -381,7 +401,7 @@ figure.highlight pre code {
 }
 
 /* ════════════════════════════════════════════════════════
-   AUX LINKS (esquina superior derecha)
+   AUX LINKS
    ════════════════════════════════════════════════════════ */
 .aux-nav-list .aux-nav-list-item a {
   background: #C8102E !important;
