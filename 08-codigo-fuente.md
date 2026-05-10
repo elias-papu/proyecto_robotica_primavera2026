@@ -22,23 +22,19 @@ Descripción de los módulos Python reales del proyecto CoBot Clasificador de Co
 
 ## 8.1 Estructura del Repositorio
 
-```
-proyecto/
-│
-├── main.py                   # Orquestador: menú, GO, SORT, SORT-BUCLE
-├── camera_detector.py        # Hilo de detección HSV + homografía
-├── calibrar_homografia.py    # Calibración ArUco + caché JSON
-├── inverse_kinematics.py     # IK analítica + cascada de 5 estrategias
-├── ik_numerica.py            # Levenberg-Marquardt (fallback)
-├── robot_controller.py       # TCP:30002 + OnRobot HTTP REST
-├── trajectory_planner.py     # Polinomio quíntico + IK numérica
-├── zone_manager.py           # Zonas, slots libres, detección de lugar
-│
-├── calibrar_color.py         # Herramienta interactiva de ajuste HSV
-├── identificador_cubos.py    # Script standalone de detección (debug)
-│
-└── homografia_cache.json     # Caché de la matriz H (se regenera con ArUco)
-```
+| Archivo | Rol |
+|---|---|
+| `main.py` | Orquestador: menú, GO, SORT, SORT-BUCLE |
+| `camera_detector.py` | Hilo de detección HSV + homografía |
+| `calibrar_homografia.py` | Calibración ArUco + caché JSON |
+| `inverse_kinematics.py` | IK analítica + cascada de 5 estrategias |
+| `ik_numerica.py` | Levenberg-Marquardt (fallback) |
+| `robot_controller.py` | TCP:30002 + OnRobot HTTP REST |
+| `trajectory_planner.py` | Polinomio quíntico + IK numérica |
+| `zone_manager.py` | Zonas, slots libres, detección de lugar |
+| `calibrar_color.py` | Herramienta interactiva de ajuste HSV |
+| `identificador_cubos.py` | Script standalone de detección (debug) |
+| `homografia_cache.json` | Caché de la matriz H (se regenera con ArUco) |
 
 ---
 

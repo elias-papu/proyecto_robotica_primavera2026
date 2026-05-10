@@ -23,28 +23,11 @@ Polinomio quíntico de `trajectory_planner.py` integrado con el planificador de 
 
 ## 4c.1 Las 3 Fases del Pick
 
-El sistema usa la nomenclatura real de `main.py`:
+El movimiento de pick sigue esta secuencia desde `main.py`:
 
-```
-HOME
-  │
-  ▼  [quíntico — tf calculado] ← calcular_tf_quintico()
-PREMOVE  (Z = 240 mm, misma XY del cubo)
-  │
-  ▼  [movej lento — vel=0.25, acel=0.2]
-APPROACH (Z = 210 mm, misma XY)  ← SE DETIENE AQUÍ
-  │
-  ▼  [movej lento]
-PICK     (Z = 160 mm, misma XY)  ← GRIP
-  │
-  ▼  [movej lento]
-APPROACH (retract)
-  │
-  ▼  [quíntico] → PLACE → RELEASE → HOME
-```
+**HOME** → PREMOVE (Z = 240 mm) → APPROACH (Z = 210 mm) → PICK (Z = 160 mm) → GRIP → APPROACH retract → PLACE → RELEASE → HOME
 
-> **Decisión de diseño:** Los tránsitos (HOME→PREMOVE, PREMOVE PICK→PREMOVE PLACE) usan planificación quíntica para minimizar el tiempo de ciclo. Las fases cerca del cubo (APPROACH→PICK→APPROACH) usan `movej` lento para máximo control.
-
+Los tránsitos largos (HOME→PREMOVE, PICK→PLACE) usan planificación quíntica con `calcular_tf_quintico()`. Las fases cerca del cubo usan `movej` lento con `vel=0.25, acel=0.2`.
 ---
 
 ## 4c.2 Código Real — `trajectory_planner.py`
