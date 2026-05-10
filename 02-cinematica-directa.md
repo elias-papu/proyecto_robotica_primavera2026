@@ -36,21 +36,21 @@ $$
 
 Extraídos directamente de `inverse_kinematics.py`:
 
-```python
-# inverse_kinematics.py — Parámetros DH del UR3 (valores reales Universal Robots)
-_a2  = -0.24365   # m  (eslabón 2 → longitud del brazo)
-_a3  = -0.21325   # m  (eslabón 3 → longitud del antebrazo)
-_d1  =  0.1519    # m  (desplazamiento base → hombro)
-_d4  =  0.11235   # m  (muñeca 1)
-_d5  =  0.08535   # m  (muñeca 2)
-_d6  =  0.0819    # m  (distancia TCP al eje de muñeca)
-```
+{% highlight python %}
+# inverse_kinematics.py - Parametros DH del UR3 (valores reales Universal Robots)
+_a2  = -0.24365   # m  (eslabon 2, longitud del brazo)
+_a3  = -0.21325   # m  (eslabon 3, longitud del antebrazo)
+_d1  =  0.1519    # m  (desplazamiento base, hombro)
+_d4  =  0.11235   # m  (muneca 1)
+_d5  =  0.08535   # m  (muneca 2)
+_d6  =  0.0819    # m  (distancia TCP al eje de muneca)
+{% endhighlight %}
 
 | Eslabón $i$ | $a_i$ (m) | $d_i$ (m) | $\alpha_i$ (rad) | $\theta_i$ |
 |:---:|:---:|:---:|:---:|:---:|
 | 1 | 0 | 0.1519 | $\pi/2$ | $q_1$ |
-| 2 | −0.24365 | 0 | 0 | $q_2$ |
-| 3 | −0.21325 | 0 | 0 | $q_3$ |
+| 2 | -0.24365 | 0 | 0 | $q_2$ |
+| 3 | -0.21325 | 0 | 0 | $q_3$ |
 | 4 | 0 | 0.11235 | $\pi/2$ | $q_4$ |
 | 5 | 0 | 0.08535 | $-\pi/2$ | $q_5$ |
 | 6 | 0 | 0.0819 | 0 | $q_6$ |
@@ -78,14 +78,14 @@ $$
 
 La cinemática directa real del proyecto está en `trajectory_planner.py` y en `ik_numerica.py`. Aquí el código de `trajectory_planner.py`:
 
-```python
-# trajectory_planner.py — Cinemática directa del UR3
+{% highlight python %}
+# trajectory_planner.py - Cinematica directa del UR3
 import math
 import numpy as np
 from inverse_kinematics import _a2, _a3, _d1, _d4, _d5, _d6
 
 def matriz_DH(theta, d, a, alpha):
-    """Matriz de transformación homogénea DH estándar."""
+    """Matriz de transformacion homogenea DH estandar."""
     ct, st = math.cos(theta), math.sin(theta)
     ca, sa = math.cos(alpha), math.sin(alpha)
     return np.array([
@@ -97,9 +97,9 @@ def matriz_DH(theta, d, a, alpha):
 
 def cinematica_directa(q_rad: list) -> np.ndarray:
     """
-    Cinemática directa del UR3.
+    Cinematica directa del UR3.
     q_rad: [q1..q6] en radianes.
-    Retorna T06 (4×4) — pose del TCP en la base.
+    Retorna T06 (4x4) - pose del TCP en la base.
     """
     params = [
         (q_rad[0], _d1, 0,   math.pi/2),
@@ -113,7 +113,7 @@ def cinematica_directa(q_rad: list) -> np.ndarray:
     for theta, d, a, alpha in params:
         T = T @ matriz_DH(theta, d, a, alpha)
     return T
-```
+{% endhighlight %}
 
 ---
 
@@ -121,45 +121,43 @@ def cinematica_directa(q_rad: list) -> np.ndarray:
 
 La **posición HOME** del sistema está definida en `robot_controller.py`:
 
-```python
+{% highlight python %}
 # robot_controller.py
 HOME_J = [0.0, -90.0, -90.0, 0.0, 90.0, 0.0]  # grados
-```
+{% endhighlight %}
 
 Convertido a radianes: $$\mathbf{q}_{HOME} = [0,\; -\pi/2,\; -\pi/2,\; 0,\; \pi/2,\; 0]$$
 
-<!-- -->
-
-```python
+{% highlight python %}
 import math
 import numpy as np
 
 q_home = [math.radians(q) for q in [0, -90, -90, 0, 90, 0]]
 T = cinematica_directa(q_home)
 
-print("Posición TCP en HOME:")
+print("Posicion TCP en HOME:")
 print(f"  x = {T[0,3]*1000:.1f} mm")
 print(f"  y = {T[1,3]*1000:.1f} mm")
 print(f"  z = {T[2,3]*1000:.1f} mm")
-print(f"\nMatriz de rotación R:")
+print(f"\nMatriz de rotacion R:")
 print(np.round(T[:3,:3], 4))
-```
+{% endhighlight %}
 
 **Resultado esperado:**
 
-```
-Posición TCP en HOME:
+{% highlight text %}
+Posicion TCP en HOME:
   x =    0.0 mm
   y = -366.0 mm
   z =  295.4 mm
 
-Matriz de rotación R:
+Matriz de rotacion R:
 [[ 1.  0.  0.]
  [ 0.  0.  1.]
  [ 0. -1.  0.]]
-```
+{% endhighlight %}
 
-La herramienta en HOME apunta **hacia abajo** (eje Z de la herramienta = −Z del mundo), lo que es correcto para el pick and place.
+La herramienta en HOME apunta **hacia abajo** (eje Z de la herramienta = -Z del mundo), lo que es correcto para el pick and place.
 
 ---
 
@@ -167,18 +165,18 @@ La herramienta en HOME apunta **hacia abajo** (eje Z de la herramienta = −Z de
 
 Las coordenadas de pick en el proyecto se configuran en `main.py`:
 
-```python
-# main.py — CONFIG del sistema
+{% highlight python %}
+# main.py - CONFIG del sistema
 CONFIG = {
     "z_pick_mm":      160.0,   # altura de agarre calibrada con TCP real
     "z_approach_mm":  210.0,   # altura de approach
-    "z_premove_mm":   240.0,   # altura de tránsito
+    "z_premove_mm":   240.0,   # altura de transito
     "rama_q2":        "elbow_up",
     "rama_q1":        "pos",
 }
-```
+{% endhighlight %}
 
-Para un cubo en X=275 mm, Y=−294 mm (zona verde), Z=160 mm:
+Para un cubo en X=275 mm, Y=-294 mm (zona verde), Z=160 mm:
 
 | Posición | Deseada (mm) | Verificada con FK (mm) | Error |
 |---|:---:|:---:|:---:|
@@ -188,4 +186,4 @@ Para un cubo en X=275 mm, Y=−294 mm (zona verde), Z=160 mm:
 
 ---
 
-[← Introducción](../01-introduccion) &nbsp;&nbsp; [Control Cinemático →](../03-control-cinematico){: .btn .btn-outline }
+[&larr; Introducción](../01-introduccion) &nbsp;&nbsp; [Control Cinemático &rarr;](../03-control-cinematico){: .btn .btn-outline }
