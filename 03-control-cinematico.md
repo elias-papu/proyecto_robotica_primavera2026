@@ -39,7 +39,7 @@ donde $$J \in \mathbb{R}^{6\times6}$$ incluye tanto la parte de traslación (fil
 
 Del archivo `ik_numerica.py` del proyecto:
 
-```python
+{% highlight python %}
 # ik_numerica.py — Jacobiano 6×6 por diferencias finitas
 def _jacobiano(q):
     """Jacobiano 6×6 por diferencias finitas. dq = 1e-6 rad."""
@@ -77,7 +77,7 @@ def _jacobiano(q):
         J[3:, i] = w
 
     return J
-```
+{% endhighlight %}
 
 ---
 
@@ -91,7 +91,7 @@ $$
 
 donde $$W = \text{diag}(10, 10, 10, 0.5, 0.5, 0.5)$$ prioriza la posición sobre la orientación.
 
-```python
+{% highlight python %}
 # ik_numerica.py — Loop de Levenberg-Marquardt (simplificado)
 W   = np.diag([10.0, 10.0, 10.0, 0.5, 0.5, 0.5])  # posición >> orientación
 lam = 0.05   # factor de amortiguamiento
@@ -113,7 +113,7 @@ for _ in range(max_iter):
     q = np.clip(q,
         [-3.14, -3.14, -1.57, -3.14, -3.14, -3.14],
         [ 3.14,  0.0,   1.57,  3.14,  3.14,  3.14])
-```
+{% endhighlight %}
 
 ---
 
@@ -121,7 +121,7 @@ for _ in range(max_iter):
 
 El módulo `trajectory_planner.py` implementa la generación de trayectorias suaves. Este es el código **real** del proyecto:
 
-```python
+{% highlight python %}
 # trajectory_planner.py — Polinomio quíntico real del proyecto
 import numpy as np
 
@@ -156,7 +156,7 @@ def polinomio_quintico(x0: float, xf: float,
     acc = 20*a5*t**3 + 12*a4*t**2 + 6*a3*t + 2*a2
 
     return pos, vel, acc, t
-```
+{% endhighlight %}
 
 ---
 
@@ -164,7 +164,7 @@ def polinomio_quintico(x0: float, xf: float,
 
 La planificación quíntica del tiempo de movimiento se integra directamente en `robot_controller.py`:
 
-```python
+{% highlight python %}
 # robot_controller.py — calcular_tf_quintico
 def calcular_tf_quintico(joints_inicio_deg, joints_fin_deg,
                          vel_max_rad=VEL_J, acel_max_rad=ACEL_J):
@@ -190,11 +190,11 @@ def calcular_tf_quintico(joints_inicio_deg, joints_fin_deg,
         tf_min  = max(tf_min, tf_vel, tf_acel)
 
     return tf_min
-```
+{% endhighlight %}
 
 El tiempo calculado se pasa directamente al comando `movej` como parámetro `t=tf`:
 
-```python
+{% highlight python %}
 # robot_controller.py — _move_j con planificación quíntica
 def _move_j(self, joints_deg, lento=False, usar_quintico=False):
     vel  = VEL_LENTO if lento else VEL_J     # 0.25 o 1.0 rad/s
@@ -211,7 +211,7 @@ def _move_j(self, joints_deg, lento=False, usar_quintico=False):
         t_espera = _tiempo_movej(self._pos_actual, joints_deg, vel=vel)
         _enviar_script(_build_movej(joints_deg, vel=vel, acel=acel),
                        esperar=t_espera)
-```
+{% endhighlight %}
 
 ---
 

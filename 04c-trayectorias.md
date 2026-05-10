@@ -23,16 +23,33 @@ Polinomio quíntico de `trajectory_planner.py` integrado con el planificador de 
 
 ## 4c.1 Las 3 Fases del Pick
 
-El movimiento de pick sigue esta secuencia desde `main.py`:
+El sistema usa la nomenclatura real de `main.py`:
 
-**HOME** → PREMOVE (Z = 240 mm) → APPROACH (Z = 210 mm) → PICK (Z = 160 mm) → GRIP → APPROACH retract → PLACE → RELEASE → HOME
+{% highlight text %}
+HOME
+  │
+  ▼  [quíntico — tf calculado] ← calcular_tf_quintico()
+PREMOVE  (Z = 240 mm, misma XY del cubo)
+  │
+  ▼  [movej lento — vel=0.25, acel=0.2]
+APPROACH (Z = 210 mm, misma XY)  ← SE DETIENE AQUÍ
+  │
+  ▼  [movej lento]
+PICK     (Z = 160 mm, misma XY)  ← GRIP
+  │
+  ▼  [movej lento]
+APPROACH (retract)
+  │
+  ▼  [quíntico] → PLACE → RELEASE → HOME
+{% endhighlight %}
 
-Los tránsitos largos (HOME→PREMOVE, PICK→PLACE) usan planificación quíntica con `calcular_tf_quintico()`. Las fases cerca del cubo usan `movej` lento con `vel=0.25, acel=0.2`.
+> **Decisión de diseño:** Los tránsitos (HOME→PREMOVE, PREMOVE PICK→PREMOVE PLACE) usan planificación quíntica para minimizar el tiempo de ciclo. Las fases cerca del cubo (APPROACH→PICK→APPROACH) usan `movej` lento para máximo control.
+
 ---
 
 ## 4c.2 Código Real — `trajectory_planner.py`
 
-```python
+{% highlight python %}
 # trajectory_planner.py — Polinomio quíntico completo
 
 def polinomio_quintico(x0, xf, t_total=4.0, n=50):
@@ -69,13 +86,13 @@ def planificar_trayectoria_cartesiana(p0, pf, t_total=4.0):
     for x, y, z in zip(x_t, y_t, z_t):
         puntos.append([float(x), float(y), float(z)])
     return puntos
-```
+{% endhighlight %}
 
 ---
 
 ## 4c.3 Cálculo de `tf` — `robot_controller.py`
 
-```python
+{% highlight python %}
 # robot_controller.py — calcular_tf_quintico()
 def calcular_tf_quintico(joints_inicio_deg, joints_fin_deg,
                          vel_max_rad=1.0, acel_max_rad=0.3):
@@ -97,19 +114,19 @@ def calcular_tf_quintico(joints_inicio_deg, joints_fin_deg,
         tf_min  = max(tf_min, tf_vel, tf_acel)
 
     return tf_min
-```
+{% endhighlight %}
 
 ---
 
 ## 4c.4 Parámetros de Velocidad
 
-```python
+{% highlight python %}
 # robot_controller.py
 VEL_J       = 1.0    # rad/s — velocidad normal (tránsitos)
 ACEL_J      = 0.3    # rad/s² — aceleración normal
 VEL_LENTO   = 0.25   # rad/s — velocidad lenta (cerca del cubo)
 ACEL_LENTO  = 0.2    # rad/s² — aceleración lenta
-```
+{% endhighlight %}
 
 | Movimiento | Velocidad | Aceleración | Modo |
 |---|:---:|:---:|---|

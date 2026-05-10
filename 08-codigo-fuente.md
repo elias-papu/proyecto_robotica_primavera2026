@@ -22,19 +22,23 @@ Descripción de los módulos Python reales del proyecto CoBot Clasificador de Co
 
 ## 8.1 Estructura del Repositorio
 
-| Archivo | Rol |
-|---|---|
-| `main.py` | Orquestador: menú, GO, SORT, SORT-BUCLE |
-| `camera_detector.py` | Hilo de detección HSV + homografía |
-| `calibrar_homografia.py` | Calibración ArUco + caché JSON |
-| `inverse_kinematics.py` | IK analítica + cascada de 5 estrategias |
-| `ik_numerica.py` | Levenberg-Marquardt (fallback) |
-| `robot_controller.py` | TCP:30002 + OnRobot HTTP REST |
-| `trajectory_planner.py` | Polinomio quíntico + IK numérica |
-| `zone_manager.py` | Zonas, slots libres, detección de lugar |
-| `calibrar_color.py` | Herramienta interactiva de ajuste HSV |
-| `identificador_cubos.py` | Script standalone de detección (debug) |
-| `homografia_cache.json` | Caché de la matriz H (se regenera con ArUco) |
+{% highlight text %}
+proyecto/
+│
+├── main.py                   # Orquestador: menú, GO, SORT, SORT-BUCLE
+├── camera_detector.py        # Hilo de detección HSV + homografía
+├── calibrar_homografia.py    # Calibración ArUco + caché JSON
+├── inverse_kinematics.py     # IK analítica + cascada de 5 estrategias
+├── ik_numerica.py            # Levenberg-Marquardt (fallback)
+├── robot_controller.py       # TCP:30002 + OnRobot HTTP REST
+├── trajectory_planner.py     # Polinomio quíntico + IK numérica
+├── zone_manager.py           # Zonas, slots libres, detección de lugar
+│
+├── calibrar_color.py         # Herramienta interactiva de ajuste HSV
+├── identificador_cubos.py    # Script standalone de detección (debug)
+│
+└── homografia_cache.json     # Caché de la matriz H (se regenera con ArUco)
+{% endhighlight %}
 
 ---
 
@@ -57,14 +61,14 @@ Descripción de los módulos Python reales del proyecto CoBot Clasificador de Co
 | `editar_config()` | Editar z_pick, z_approach, z_premove, rama_q2 en tiempo de ejecución |
 
 **Banner de terminal:**
-```python
+{% highlight python %}
 BANNER = """
 ╔══════════════════════════════════════════════════════════╗
 ║         UR3 PICK & PLACE — SISTEMA DE VISIÓN             ║
 ║         Cámara C920  ·  OnRobot Soft Gripper             ║
 ╚══════════════════════════════════════════════════════════╝
 """
-```
+{% endhighlight %}
 
 ---
 
@@ -83,14 +87,14 @@ BANNER = """
 
 **Inyección de homografía:**
 
-```python
+{% highlight python %}
 # En main.py, después de calibrar:
 set_homografia(H_calibrada)  # ← modifica _H global en camera_detector.py
-```
+{% endhighlight %}
 
 **Campos de cada cubo detectado:**
 
-```python
+{% highlight python %}
 {
     "color":    "ROJO",     # "ROJO" | "AZUL" | "VERDE"
     "u_px":     640,        # centroide en píxeles
@@ -103,7 +107,7 @@ set_homografia(H_calibrada)  # ← modifica _H global en camera_detector.py
     "contour":  ...,        # cv2 contorno para dibujar
     "bbox":     (x,y,w,h),
 }
-```
+{% endhighlight %}
 
 ---
 
@@ -203,7 +207,7 @@ set_homografia(H_calibrada)  # ← modifica _H global en camera_detector.py
 
 **Responsabilidad:** Define las 3 zonas de clasificación, genera slots en cuadrícula 2×2 por zona, y determina el slot libre más central para el depósito.
 
-```python
+{% highlight python %}
 # zone_manager.py — Mapa de destinos
 DESTINO_POR_COLOR = {
     "VERDE": "VERDE",
@@ -212,7 +216,7 @@ DESTINO_POR_COLOR = {
 }
 
 RADIO_OCUPADO_MM = 30.0  # radio para declarar un slot como ocupado
-```
+{% endhighlight %}
 
 | Función | Descripción |
 |---|---|

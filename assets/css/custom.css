@@ -321,11 +321,11 @@ figure.highlight pre code,
    ════════════════════════════════════════════════════════ */
 .main-content table {
   width: 100% !important;
-  border-collapse: separate !important;
+  border-collapse: collapse !important;
   border-spacing: 0 !important;
-  border-radius: 8px !important;
-  overflow: hidden !important;
-  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.1) !important;
+  border-radius: 0 !important;
+  overflow: visible !important;
+  box-shadow: none !important;
   margin: 1.5rem 0 !important;
   font-size: 0.92rem !important;
 }

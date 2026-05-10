@@ -24,7 +24,7 @@ Sistema completo: modos GO, SORT y SORT-BUCLE con código real de `main.py` y `r
 
 El sistema se opera desde una terminal con los siguientes comandos (definidos en `main.py`):
 
-```
+{% highlight text %}
 ╔══════════════════════════════════════════════════════════╗
 ║         UR3 PICK & PLACE — SISTEMA DE VISIÓN             ║
 ║         Cámara C920  ·  OnRobot Soft Gripper             ║
@@ -40,13 +40,13 @@ El sistema se opera desde una terminal con los siguientes comandos (definidos en
   brida close  → Cerrar brida manualmente
   config       → Ver / editar parámetros del sistema
   salir        → Cerrar programa
-```
+{% endhighlight %}
 
 ---
 
 ## 5.2 Flujo de Arranque
 
-```python
+{% highlight python %}
 # main.py — Flujo de arranque real
 def main():
     # 1. Abrir cámara (instancia compartida)
@@ -69,13 +69,13 @@ def main():
     # 4. Conectar con el robot
     robot = RobotController(modo_sim=False)
     robot.inicializar_brida()   # GET /api/dc/sg/initialize/0/1
-```
+{% endhighlight %}
 
 ---
 
 ## 5.3 Modo GO — Flujo de Pick Individual
 
-```python
+{% highlight python %}
 # main.py — flujo_pick() real
 def flujo_pick(detector, robot):
     # Captura puntual del estado de la cámara
@@ -104,13 +104,13 @@ def flujo_pick(detector, robot):
         x_mm = cubo["x_mm"],
         y_mm = cubo["y_mm"],
     )
-```
+{% endhighlight %}
 
 ---
 
 ## 5.4 Modo SORT — Clasificación Autónoma
 
-```python
+{% highlight python %}
 # main.py — _nucleo_sort() (bucle principal de clasificación)
 def _nucleo_sort(detector, robot, a_mover):
     slots_usados = {"ROJO": [], "AZUL": [], "VERDE": []}
@@ -154,7 +154,7 @@ def _nucleo_sort(detector, robot, a_mover):
         slots_usados[cb["color"].upper()].append((dx_mm, dy_mm))
 
     robot.ir_a_home()
-```
+{% endhighlight %}
 
 > **Optimización clave:** En el modo SORT, el robot va **directo de PICK a PLACE** sin pasar por HOME, reduciendo el tiempo de ciclo total.
 
@@ -162,7 +162,7 @@ def _nucleo_sort(detector, robot, a_mover):
 
 ## 5.5 Modo SORT-BUCLE
 
-```python
+{% highlight python %}
 # main.py — flujo_sort_bucle()
 def flujo_sort_bucle(detector, robot):
     """Sort continuo — ordena, espera a que el operador desordene, y vuelve."""
@@ -180,13 +180,13 @@ def flujo_sort_bucle(detector, robot):
                     break   # detectó cubos fuera de lugar
         else:
             _nucleo_sort(detector, robot, a_mover)
-```
+{% endhighlight %}
 
 ---
 
 ## 5.6 Comunicación TCP con el UR3
 
-```python
+{% highlight python %}
 # robot_controller.py — Envío de comandos URScript
 
 ROBOT_IP   = "192.168.1.74"
@@ -207,13 +207,13 @@ def _enviar_script(script, esperar=0.5):
         s.connect((ROBOT_IP, ROBOT_PORT))
         s.sendall(script.encode("utf-8"))
     time.sleep(esperar)
-```
+{% endhighlight %}
 
 ---
 
 ## 5.7 Waypoint de Rodeo
 
-```python
+{% highlight python %}
 # robot_controller.py — Zona de barras laterales
 BARRA_Y_FIN   = -280.0   # mm
 BARRA_X_LIBRE =  350.0   # mm
@@ -222,7 +222,7 @@ WAYPOINT_RODEO_J = [0.0, -110.0, -90.0, -70.0, 90.0, 0.0]  # grados
 def necesita_rodeo(x_mm, y_mm):
     """True si el cubo está en la zona de barras laterales."""
     return y_mm < BARRA_Y_FIN or abs(x_mm) > BARRA_X_LIBRE
-```
+{% endhighlight %}
 
 La condición de rodeo es: $$Y < -280\,\text{mm}$$ O $$|X| > 350\,\text{mm}$$
 

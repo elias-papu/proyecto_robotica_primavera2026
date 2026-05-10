@@ -25,12 +25,12 @@ Sistema de IK con cascada de 5 estrategias: analítica → ramas alternativas �
 
 En el proyecto, la IK debe resolverse para tres posiciones diferentes en cada pick:
 
-```python
+{% highlight python %}
 # main.py — calcular_y_mostrar_ik
 ik_premove  = calcular_ik(x_m, y_m, z_premove_m,  ...)  # Z=240 mm
 ik_approach = calcular_ik(x_m, y_m, z_approach_m, ...)  # Z=210 mm
 ik_pick     = calcular_ik(x_m, y_m, z_pick_m,     ...)  # Z=160 mm
-```
+{% endhighlight %}
 
 Si **cualquiera de las tres falla**, el pick no puede ejecutarse. Esto impulsó el diseño de una IK robusta con cascada de fallbacks.
 
@@ -47,13 +47,13 @@ El UR3 tiene hasta 8 soluciones para cada pose. Las dos ramas principales config
 
 ### Configuración elegida para el proyecto
 
-```python
+{% highlight python %}
 CONFIG = {
     "rama_q2": "elbow_up",   # ← q3 positivo: brazo extendido hacia arriba
     "rama_q1": "pos",        # ← rama positiva de q1
     ...
 }
-```
+{% endhighlight %}
 
 ---
 
@@ -61,7 +61,7 @@ CONFIG = {
 
 La función `calcular_ik()` en `inverse_kinematics.py` implementa una cascada de 5 estrategias para maximizar la tasa de éxito:
 
-```python
+{% highlight python %}
 # inverse_kinematics.py — calcular_ik() con cascada completa
 def calcular_ik(px_m, py_m, pz_m, rot=None, rama_q2="elbow_up", rama_q1="pos"):
     """
@@ -104,7 +104,7 @@ def calcular_ik(px_m, py_m, pz_m, rot=None, rama_q2="elbow_up", rama_q1="pos"):
     # ── ESTRATEGIA 5: IK numérica Levenberg-Marquardt ────────────────────
     from ik_numerica import ik_numerica
     return ik_numerica(px_m, py_m, pz_m)
-```
+{% endhighlight %}
 
 ---
 
@@ -112,14 +112,14 @@ def calcular_ik(px_m, py_m, pz_m, rot=None, rama_q2="elbow_up", rama_q1="pos"):
 
 La orientación estándar (herramienta apuntando hacia abajo) está definida en `inverse_kinematics.py`:
 
-```python
+{% highlight python %}
 # inverse_kinematics.py — orientación por defecto
 _DEFAULT_ROT = {
     "nx": -0.7673, "ny": -0.6402, "nz":  0.0388,
     "ox": -0.6413, "oy":  0.7664, "oz": -0.0371,
     "ax": -0.0060, "ay": -0.0533, "az": -0.9986,
 }
-```
+{% endhighlight %}
 
 Esta orientación fue obtenida empíricamente moviendo el robot a la posición de pick con el teach pendant y leyendo la pose del TCP.
 

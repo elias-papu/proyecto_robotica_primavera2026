@@ -22,12 +22,12 @@ Pipeline real de `camera_detector.py` y `calibrar_homografia.py`.
 
 ## 6.1 Pipeline Completo
 
-```
+{% highlight text %}
 Frame BGR (1280×720) ─→ HSV ─→ Máscara por color ─→ Morfología
   ─→ Contornos ─→ 4 filtros geométricos ─→ Centroide (px, py)
   ─→ Corrección distorsión (K_DIST) ─→ Homografía H
   ─→ (X_mm, Y_mm) en coordenadas del robot
-```
+{% endhighlight %}
 
 ---
 
@@ -35,7 +35,7 @@ Frame BGR (1280×720) ─→ HSV ─→ Máscara por color ─→ Morfología
 
 Del archivo `camera_detector.py` — calibrados con `calibrar_color.py`:
 
-```python
+{% highlight python %}
 # camera_detector.py — Rangos HSV calibrados en laboratorio IBERO
 COLOR_RANGES = {
     "ROJO": [
@@ -51,7 +51,7 @@ COLOR_RANGES = {
         (np.array([35,  60,  40]), np.array([90,  255, 255])),
     ],
 }
-```
+{% endhighlight %}
 
 | Color | H_min | S_min | V_min | H_max | S_max | V_max | Notas |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|---|
@@ -64,7 +64,7 @@ COLOR_RANGES = {
 
 ## 6.3 Filtros Geométricos — Código Real
 
-```python
+{% highlight python %}
 # camera_detector.py — _detectar_cubos_en_frame() (extracto)
 
 for c in cnts:
@@ -99,7 +99,7 @@ for c in cnts:
     # F. Workspace del robot (filtro final)
     if not (-500 <= x_mm <= 500 and -600 <= y_mm <= 100):
         continue
-```
+{% endhighlight %}
 
 | Filtro | Condición | Justificación |
 |---|---|---|
@@ -116,7 +116,7 @@ for c in cnts:
 
 ### Coordenadas Reales de los Marcadores
 
-```python
+{% highlight python %}
 # calibrar_homografia.py — Coordenadas medidas con TCP del robot
 COORDS_ROBOT_MM = {
     0: (  435.0,  -490.0),   # ID0 — esquina superior izquierda (en imagen)
@@ -124,11 +124,11 @@ COORDS_ROBOT_MM = {
     2: (  435.0,  -120.0),   # ID2 — esquina inferior izquierda
     3: ( -435.0,  -115.0),   # ID3 — esquina inferior derecha
 }
-```
+{% endhighlight %}
 
 ### Proceso de Calibración
 
-```python
+{% highlight python %}
 # calibrar_homografia.py — Cálculo de homografía con RANSAC
 
 def _calcular_H(centros_px, coords_robot):
@@ -138,7 +138,7 @@ def _calcular_H(centros_px, coords_robot):
 
     H, _ = cv2.findHomography(pts_px, pts_robot, cv2.RANSAC, 5.0)
     return H
-```
+{% endhighlight %}
 
 El proceso completo:
 1. Mostrar feed en vivo hasta que el usuario presiona ENTER
@@ -149,7 +149,7 @@ El proceso completo:
 
 ### Caché JSON
 
-```python
+{% highlight python %}
 # calibrar_homografia.py — Formato del caché
 {
   "H": [[h00, h01, h02], [h10, h11, h12], [h20, h21, h22]],
@@ -160,13 +160,13 @@ El proceso completo:
     "3": [-435.0, -115.0]
   }
 }
-```
+{% endhighlight %}
 
 ---
 
 ## 6.5 Transformación Pixel → Robot
 
-```python
+{% highlight python %}
 # camera_detector.py — _pixel_a_robot()
 def _pixel_a_robot(u, v):
     """
@@ -181,7 +181,7 @@ def _pixel_a_robot(u, v):
     if abs(w) < 1e-9:
         return 0.0, 0.0
     return float(q[0,0] / w), float(q[1,0] / w)
-```
+{% endhighlight %}
 
 ---
 
@@ -189,7 +189,7 @@ def _pixel_a_robot(u, v):
 
 El proyecto incluye `calibrar_color.py` — una herramienta interactiva con trackbars para ajustar los rangos HSV en tiempo real:
 
-```python
+{% highlight python %}
 # calibrar_color.py — Uso
 # python calibrar_color.py
 # Ajusta los sliders hasta que solo el cubo objetivo sea blanco en la máscara
@@ -198,7 +198,7 @@ El proyecto incluye `calibrar_color.py` — una herramienta interactiva con trac
 # Output:
 #   RANGO FINAL:
 #   (np.array([45, 100, 60]), np.array([80, 255, 220]))
-```
+{% endhighlight %}
 
 ---
 

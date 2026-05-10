@@ -76,7 +76,7 @@ $$
 
 ## 4a.2 Código Completo — `calcular_ik_raw()`
 
-```python
+{% highlight python %}
 # inverse_kinematics.py — Función principal IK analítica
 
 def calcular_ik_raw(px_m, py_m, pz_m, rot=None,
@@ -165,7 +165,7 @@ def calcular_ik_raw(px_m, py_m, pz_m, rot=None,
 
     except Exception as e:
         return {"valido": False, "mensaje": f"Error: {e}"}
-```
+{% endhighlight %}
 
 ---
 
@@ -173,14 +173,14 @@ def calcular_ik_raw(px_m, py_m, pz_m, rot=None,
 
 Posición destino: $$X = 275\,\text{mm},\; Y = -294\,\text{mm},\; Z = 160\,\text{mm}$$
 
-```python
+{% highlight python %}
 from inverse_kinematics import calcular_ik, imprimir_ik
 
 res = calcular_ik(0.275, -0.294, 0.160)
 imprimir_ik(res, "Pick zona verde")
-```
+{% endhighlight %}
 
-```
+{% highlight text %}
 ────────────────────────────────────────────────────────
   ✓ Cinemática Inversa UR3
 ────────────────────────────────────────────────────────
@@ -191,19 +191,19 @@ imprimir_ik(res, "Pick zona verde")
   q5 =   90.000°   (+1.57080 rad)
   q6 =   13.422°   (+0.23427 rad)
 ────────────────────────────────────────────────────────
-```
+{% endhighlight %}
 
 ---
 
 ## 4a.4 Test rápido en `__main__`
 
-```python
+{% highlight python %}
 # Al final de inverse_kinematics.py
 if __name__ == "__main__":
     res = calcular_ik(0.35, -0.10, 0.30335)
     imprimir_ik(res, "TEST: px=0.35  py=-0.10  pz=0.30335")
     print("joints_deg:", [f"{q:.2f}" for q in res.get("joints_deg", [])])
-```
+{% endhighlight %}
 
 ---
 

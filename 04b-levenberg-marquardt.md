@@ -35,7 +35,7 @@ Con pesos $$W = \text{diag}(10, 10, 10, 0.5, 0.5, 0.5)$$ que priorizan la posici
 
 ## 4b.2 Código Real — `ik_numerica.py`
 
-```python
+{% highlight python %}
 # ik_numerica.py — Función completa ik_numerica()
 
 def ik_numerica(px_m, py_m, pz_m, q_inicial=None,
@@ -87,7 +87,7 @@ def ik_numerica(px_m, py_m, pz_m, q_inicial=None,
             [ 3.14,  0.0,   1.57,  3.14,  3.14,  3.14])
 
     return {"valido": False, "mensaje": f"No convergió en {max_iter} iter"}
-```
+{% endhighlight %}
 
 ---
 
