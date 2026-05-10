@@ -128,6 +128,8 @@ HOME_J = [0.0, -90.0, -90.0, 0.0, 90.0, 0.0]  # grados
 
 Convertido a radianes: $$\mathbf{q}_{HOME} = [0,\; -\pi/2,\; -\pi/2,\; 0,\; \pi/2,\; 0]$$
 
+<!-- -->
+
 ```python
 import math
 import numpy as np
@@ -144,6 +146,7 @@ print(np.round(T[:3,:3], 4))
 ```
 
 **Resultado esperado:**
+
 ```
 Posición TCP en HOME:
   x =    0.0 mm
