@@ -86,7 +86,38 @@ El error mayor después de calibración proviene de la resolución de la cámara
 
 ---
 
-## 7.6 Conclusiones
+## 7.6 Videos del Sistema en Operación
+
+### Rutina completa de clasificación
+
+<div style="position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 10px; margin: 1.5rem 0; box-shadow: 0 6px 20px rgba(0,0,0,0.12);">
+  <iframe src="https://www.youtube.com/embed/3k_M8NYh3sA"
+    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
+    allowfullscreen loading="lazy">
+  </iframe>
+</div>
+
+### Vista de la cámara — detección HSV en tiempo real
+
+<div style="position: relative; padding-bottom: 177.78%; height: 0; overflow: hidden; border-radius: 10px; margin: 1.5rem 0; box-shadow: 0 6px 20px rgba(0,0,0,0.12);">
+  <iframe src="https://www.youtube.com/embed/gWFa7Z1iGTo"
+    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
+    allowfullscreen loading="lazy">
+  </iframe>
+</div>
+
+### Rutina vista frontal
+
+<div style="position: relative; padding-bottom: 177.78%; height: 0; overflow: hidden; border-radius: 10px; margin: 1.5rem 0; box-shadow: 0 6px 20px rgba(0,0,0,0.12);">
+  <iframe src="https://www.youtube.com/embed/yGHsUg1K5iI"
+    style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;"
+    allowfullscreen loading="lazy">
+  </iframe>
+</div>
+
+--- 
+
+## 7.7 Conclusiones
 
 1. **La IK analítica es la elección correcta** para pick and place industrial con el UR3. Tiempo < 1 ms, exactitud numérica y selección explícita de configuración son ventajas decisivas.
 
